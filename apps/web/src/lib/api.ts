@@ -25,10 +25,20 @@ export async function apiRequest<T = any>(
     }
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (netErr: any) {
+    const error: ApiError = {
+      error: 'NetworkError',
+      message: `Cannot connect to Dhaka Tesla Pool API at ${API_BASE_URL}. Ensure backend is running with 'npm run dev:api' or 'npm run dev'.`,
+      statusCode: 0,
+    };
+    throw error;
+  }
 
   const data = await response.json().catch(() => ({}));
 

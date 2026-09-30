@@ -51,14 +51,35 @@ export default function HomePage() {
   const [routeData, setRouteData] = useState<DistanceCalculation | null>(null);
   const [loadingRoute, setLoadingRoute] = useState<boolean>(false);
 
+  const [apiOffline, setApiOffline] = useState<boolean>(false);
+
+  // Fallback areas for high resilience
+  const FALLBACK_AREAS: Area[] = [
+    { id: 1, name: 'Banani', latitude: 23.7937, longitude: 90.4045 },
+    { id: 2, name: 'Gulshan 1', latitude: 23.7806, longitude: 90.4169 },
+    { id: 3, name: 'Gulshan 2', latitude: 23.7947, longitude: 90.4137 },
+    { id: 4, name: 'Mohakhali', latitude: 23.7776, longitude: 90.4005 },
+    { id: 5, name: 'Dhanmondi', latitude: 23.7535, longitude: 90.3703 },
+    { id: 6, name: 'Mirpur', latitude: 23.8084, longitude: 90.3683 },
+    { id: 7, name: 'Uttara', latitude: 23.8728, longitude: 90.3984 },
+    { id: 8, name: 'Farmgate', latitude: 23.7590, longitude: 90.3871 },
+    { id: 9, name: 'Bashundhara', latitude: 23.8167, longitude: 90.4294 },
+    { id: 10, name: 'Motijheel', latitude: 23.7273, longitude: 90.4212 },
+    { id: 11, name: 'Shahbag', latitude: 23.7373, longitude: 90.3962 },
+    { id: 12, name: 'Tejgaon', latitude: 23.7628, longitude: 90.3913 },
+  ];
+
   // Fetch areas on load
   useEffect(() => {
     async function loadAreas() {
       try {
         const data = await api.get<Area[]>('/api/areas');
         setAreas(data);
+        setApiOffline(false);
       } catch (err) {
-        console.error('Failed to load areas:', err);
+        console.warn('Backend API currently unreachable, using verified Dhaka hub coordinates fallback:', err);
+        setAreas(FALLBACK_AREAS);
+        setApiOffline(true);
       }
     }
     loadAreas();
@@ -106,6 +127,12 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
       <Navbar />
+
+      {apiOffline && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 text-center text-xs text-amber-300 flex items-center justify-center gap-2">
+          <span>⚠️ Backend API server is offline (port 4000). Run <code>npm run dev:api</code> or <code>npm run dev</code> in your terminal to enable live bookings.</span>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-12 pb-20 border-b border-slate-800/80 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950">
