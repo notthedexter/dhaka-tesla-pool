@@ -7,14 +7,14 @@ import Navbar from '../../../components/Navbar';
 import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../lib/api';
 import {
-  Zap,
-  ArrowRight,
   Clock,
   Loader2,
   Calendar,
-  AlertCircle,
   CheckCircle,
   XCircle,
+  Zap,
+  ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 
 interface RideItem {
@@ -29,6 +29,24 @@ interface RideItem {
   createdAt: string;
 }
 
+const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
+  COMPLETED: {
+    label: 'Completed',
+    cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    icon: <CheckCircle className="w-3 h-3" />,
+  },
+  CANCELLED: {
+    label: 'Cancelled',
+    cls: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    icon: <XCircle className="w-3 h-3" />,
+  },
+  STARTED: {
+    label: 'In Progress',
+    cls: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    icon: <Loader2 className="w-3 h-3 animate-spin" />,
+  },
+};
+
 export default function RideHistoryPage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
@@ -38,161 +56,108 @@ export default function RideHistoryPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login');
-      return;
-    }
-
-    async function loadRides() {
-      try {
-        const data = await api.get<RideItem[]>('/api/rides/my');
-        setRides(data);
-      } catch (err: any) {
-        console.error('Fetch history error:', err);
-        setError(err.message || 'Failed to load ride history');
-      } finally {
-        setLoading(false);
-      }
-    }
-
+    if (!isLoading && !user) { router.push('/login'); return; }
     if (user) {
-      loadRides();
+      api.get<RideItem[]>('/api/rides/my')
+        .then(setRides)
+        .catch((err: any) => setError(err.message || 'Failed to load history'))
+        .finally(() => setLoading(false));
     }
   }, [user, isLoading, router]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'COMPLETED':
-        return (
-          <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold rounded-lg flex items-center gap-1">
-            <CheckCircle className="w-3.5 h-3.5" /> Completed
-          </span>
-        );
-      case 'CANCELLED':
-        return (
-          <span className="px-2.5 py-1 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold rounded-lg flex items-center gap-1">
-            <XCircle className="w-3.5 h-3.5" /> Cancelled
-          </span>
-        );
-      case 'STARTED':
-        return (
-          <span className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold rounded-lg flex items-center gap-1">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" /> In Progress
-          </span>
-        );
-      default:
-        return (
-          <span className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold rounded-lg">
-            {status.replace('_', ' ')}
-          </span>
-        );
-    }
-  };
+  const statusConfig = (status: string) =>
+    STATUS_CONFIG[status] || { label: status.replace('_', ' '), cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: null };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col">
       <Navbar />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
-              <Clock className="h-6 w-6 text-emerald-400" />
-              My Ride History
+            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+              <Clock className="w-5 h-5 text-emerald-400" /> Ride History
             </h1>
-            <p className="text-slate-400 text-sm mt-1">
-              All your booked, pooled, and completed Dhaka Tesla journeys.
-            </p>
+            <p className="text-xs text-slate-500 mt-0.5">All your Dhaka Tesla journeys</p>
           </div>
-
           <div className="flex items-center gap-2">
             <Link
               href="/passenger/wallet"
-              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-emerald-400 font-bold rounded-xl text-xs transition flex items-center gap-1.5"
+              className="px-3 py-1.5 text-xs font-medium text-slate-400 glass border border-white/[0.06] rounded-lg hover:text-white transition flex items-center gap-1.5"
             >
-              <Zap className="w-3.5 h-3.5" /> TeslaPay Wallet
+              <Zap className="w-3 h-3 text-emerald-400" /> Wallet
             </Link>
-
             <Link
               href="/passenger/book"
-              className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs transition"
             >
-              <Zap className="w-3.5 h-3.5 fill-current" /> Book New Ride
+              Book
             </Link>
           </div>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-300 text-sm flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 shrink-0" />
-            <span>{error}</span>
+          <div className="mb-5 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-300 text-sm flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" /> {error}
           </div>
         )}
 
         {loading ? (
-          <div className="py-24 text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-emerald-400 mx-auto mb-2" />
-            <p className="text-sm text-slate-400">Loading your trips...</p>
+          <div className="py-20 flex justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
           </div>
         ) : rides.length === 0 ? (
-          <div className="py-20 text-center bg-slate-900/60 border border-slate-800 rounded-3xl p-8">
-            <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 mx-auto mb-3">
-              🚗
-            </div>
-            <h3 className="font-bold text-white text-base">No Rides Found</h3>
-            <p className="text-xs text-slate-400 mt-1">You haven&apos;t booked any Tesla rides yet.</p>
-            <Link
-              href="/passenger/book"
-              className="mt-5 inline-block px-5 py-2.5 bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs"
-            >
-              Book Your First Ride
+          <div className="glass-card rounded-3xl p-12 text-center">
+            <div className="text-4xl mb-4">🚗</div>
+            <h3 className="font-bold text-white mb-2">No rides yet</h3>
+            <p className="text-xs text-slate-500 mb-5">Book your first Tesla pool ride across Dhaka.</p>
+            <Link href="/passenger/book" className="px-5 py-2.5 bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs inline-block">
+              Book a Ride
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
-            {rides.map((ride) => (
-              <Link
-                key={ride.id}
-                href={`/passenger/ride/${ride.id}`}
-                className="block bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-5 shadow-xl transition group"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>{new Date(ride.createdAt).toLocaleString()}</span>
-                      <span>•</span>
-                      <span>{ride.seatsNeeded} {ride.seatsNeeded === 1 ? 'Seat' : 'Seats'}</span>
+          <div className="space-y-3">
+            {rides.map((ride) => {
+              const s = statusConfig(ride.status);
+              return (
+                <Link
+                  key={ride.id}
+                  href={`/passenger/ride/${ride.id}`}
+                  className="block glass-card rounded-2xl p-5 hover:border-emerald-500/20 transition group"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 text-xs text-slate-500 mb-1.5">
+                        <Calendar className="w-3 h-3" />
+                        <span>{new Date(ride.createdAt).toLocaleString()}</span>
+                        <span>·</span>
+                        <span>{ride.seatsNeeded} {ride.seatsNeeded === 1 ? 'seat' : 'seats'}</span>
+                        <span>·</span>
+                        <span>{ride.distanceKm} km</span>
+                      </div>
+                      <div className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>{ride.pickupArea.name}</span>
+                        <span className="text-slate-600">→</span>
+                        <span className="text-emerald-400">{ride.destinationArea.name}</span>
+                      </div>
                     </div>
 
-                    <div className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <span>{ride.pickupArea.name}</span>
-                      <span className="text-slate-500">→</span>
-                      <span className="text-emerald-400">{ride.destinationArea.name}</span>
-                    </div>
-
-                    <p className="text-xs text-slate-400 mt-1">
-                      Distance: {ride.distanceKm} km • Method: {ride.paymentMethod}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between sm:justify-end gap-5">
-                    <div className="text-right">
-                      <span className="text-xs text-slate-400 block">Fare</span>
-                      <span className="font-extrabold text-white text-lg block">
-                        ৳{(ride.estimatedFarePaisa / 100).toFixed(0)}
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="text-right">
+                        <span className="text-xs text-slate-500 block">Fare</span>
+                        <span className="font-bold text-white">৳{(ride.estimatedFarePaisa / 100).toFixed(0)}</span>
+                      </div>
+                      <span className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${s.cls}`}>
+                        {s.icon} {s.label}
                       </span>
-                    </div>
-
-                    <div>{getStatusBadge(ride.status)}</div>
-
-                    <div className="p-2 rounded-xl bg-slate-800 text-slate-400 group-hover:text-emerald-400 group-hover:bg-slate-700/80 transition">
-                      <ArrowRight className="w-4 h-4" />
+                      <div className="w-7 h-7 rounded-lg bg-white/[0.05] group-hover:bg-emerald-500/10 flex items-center justify-center transition">
+                        <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
       </main>

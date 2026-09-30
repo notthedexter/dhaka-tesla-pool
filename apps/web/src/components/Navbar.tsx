@@ -1,114 +1,113 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
-import { Zap, User, Car, LogOut, Wallet, Shield } from 'lucide-react';
+import { Zap, LogOut, Wallet, Car, ChevronDown } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const walletBdt = ((user?.walletBalancePaisa || 0) / 100).toFixed(0);
 
   return (
-    <header className="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-50 glass border-b border-white/[0.06]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="p-1.5 bg-emerald-500 text-slate-950 rounded-xl shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform flex items-center justify-center">
-            <Zap className="h-5 w-5 fill-current" />
+        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+          <div className="w-7 h-7 bg-emerald-500 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/30">
+            <Zap className="w-4 h-4 text-slate-950 fill-current" />
           </div>
-          <div>
-            <span className="font-extrabold text-lg tracking-tight text-white block leading-none">
-              Dhaka Tesla Pool
-            </span>
-            <span className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase block mt-0.5">
-              3-Wheel Electric Mobility
-            </span>
-          </div>
+          <span className="font-bold text-sm text-white tracking-tight hidden sm:block">
+            Dhaka Tesla Pool
+          </span>
         </Link>
 
-        {/* Center navigation links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
-          <Link href="/passenger/book" className="hover:text-emerald-400 transition">
-            Book a Ride
+        {/* Center nav */}
+        <nav className="hidden md:flex items-center gap-1">
+          <Link href="/passenger/book" className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
+            Book
           </Link>
-          <Link href="/driver/dashboard" className="hover:text-emerald-400 transition">
+          <Link href="/driver/dashboard" className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
             Driver Hub
           </Link>
-          <Link href="/#how-it-works" className="hover:text-emerald-400 transition">
+          <Link href="/#how-it-works" className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
             How It Works
-          </Link>
-          <Link href="/#story-cast" className="hover:text-emerald-400 transition">
-            The Story Cast
           </Link>
         </nav>
 
-        {/* User auth state */}
-        <div className="flex items-center gap-3">
+        {/* Right: auth */}
+        <div className="flex items-center gap-2">
           {user ? (
-            <div className="flex items-center gap-3">
-              {/* Passenger wallet balance */}
+            <>
+              {/* Wallet badge */}
               {user.role === 'PASSENGER' && (
                 <Link
                   href="/passenger/wallet"
-                  title="View TeslaPay Wallet & Top-up"
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-emerald-950/80 hover:bg-emerald-900/80 border border-emerald-500/30 rounded-full text-xs font-bold text-emerald-300 transition"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg text-xs font-semibold text-emerald-400 transition-all"
                 >
-                  <Wallet className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>৳{(user.walletBalancePaisa / 100).toFixed(0)}</span>
-                  <span className="text-[10px] text-emerald-400 font-normal">TeslaPay +</span>
+                  <Wallet className="w-3 h-3" />
+                  ৳{walletBdt}
                 </Link>
               )}
 
-              {/* Driver wallet & vehicle badges */}
               {user.role === 'DRIVER' && (
                 <div className="hidden sm:flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-950/80 border border-emerald-500/30 rounded-full text-xs font-bold text-emerald-300">
-                    <Wallet className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>৳{((user.walletBalancePaisa || 0) / 100).toFixed(0)}</span>
-                    <span className="text-[10px] text-emerald-400 font-normal">Pilot Wallet</span>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs font-semibold text-emerald-400">
+                    <Wallet className="w-3 h-3" />
+                    ৳{walletBdt}
                   </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-950/80 border border-amber-500/30 rounded-full text-xs font-bold text-amber-300">
-                    <Car className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{user.tesla?.name || 'Tesla'} ({user.tesla?.totalSeats || 3} seats)</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs font-semibold text-amber-400">
+                    <Car className="w-3 h-3" />
+                    {user.tesla?.name || 'Tesla'}
                   </div>
                 </div>
               )}
 
-              {/* User menu */}
-              <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 px-3 py-1.5 rounded-xl">
-                <div className="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-bold text-xs">
-                  {user.name.charAt(0)}
-                </div>
-                <div className="text-left hidden sm:block">
-                  <span className="font-semibold text-xs text-white block leading-tight">
+              {/* User pill */}
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="flex items-center gap-2 px-2.5 py-1.5 bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-all"
+                >
+                  <div className="w-6 h-6 rounded-md bg-emerald-500 flex items-center justify-center text-slate-950 font-bold text-[11px]">
+                    {user.name.charAt(0)}
+                  </div>
+                  <span className="text-xs font-medium text-white hidden sm:block max-w-[80px] truncate">
                     {user.name}
                   </span>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">
-                    {user.role}
-                  </span>
-                </div>
-              </div>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
 
-              {/* Logout button */}
-              <button
-                onClick={logout}
-                title="Sign out"
-                className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+                {menuOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-44 glass-card rounded-xl p-1 border border-white/[0.08] z-50">
+                    <div className="px-3 py-2 border-b border-white/[0.06] mb-1">
+                      <p className="text-xs font-semibold text-white">{user.name}</p>
+                      <p className="text-[11px] text-slate-400 uppercase tracking-wider">{user.role}</p>
+                    </div>
+                    <button
+                      onClick={() => { logout(); setMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Link
                 href="/login"
-                className="px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition"
+                className="px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white transition"
               >
-                Sign In
+                Sign in
               </Link>
               <Link
                 href="/register"
-                className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow-md shadow-emerald-500/20 transition"
+                className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-lg shadow-md shadow-emerald-500/20 transition"
               >
                 Join Pool
               </Link>

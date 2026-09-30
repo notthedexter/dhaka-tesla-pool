@@ -7,6 +7,7 @@ import Navbar from '../../../components/Navbar';
 import DynamicMap, { MapMarker } from '../../../components/DynamicMap';
 import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../lib/api';
+import { LiquidGlassAvatar } from '@/components/lightswind/liquid-glass-avatar';
 import {
   Zap,
   Car,
@@ -17,8 +18,6 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  ShieldCheck,
-  TrendingUp,
   RefreshCw,
   Wallet,
 } from 'lucide-react';
@@ -72,23 +71,16 @@ export default function DriverDashboardPage() {
   const [togglingStatus, setTogglingStatus] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Authentication Guard: must be a driver
   useEffect(() => {
     if (!isLoading) {
-      if (!user) {
-        router.push('/login?redirect=/driver/dashboard');
-      } else if (user.role !== 'DRIVER') {
-        router.push('/passenger/book');
-      } else if (user.tesla) {
-        setIsOnline(user.tesla.isOnline);
-      }
+      if (!user) router.push('/login?redirect=/driver/dashboard');
+      else if (user.role !== 'DRIVER') router.push('/passenger/book');
+      else if (user.tesla) setIsOnline(user.tesla.isOnline);
     }
   }, [user, isLoading, router]);
 
-  // Fetch driver data (pool and pending requests)
   const fetchData = async () => {
     try {
-      // 1. Fetch active and awaiting pools
       const res = await api.get<any>('/api/drivers/pool/current');
       if (res) {
         setActivePool(res.currentPool || null);
@@ -97,22 +89,16 @@ export default function DriverDashboardPage() {
         setActivePool(null);
         setAwaitingPool(null);
       }
-
-      // 2. If online and not completed, fetch pending requests
       if (isOnline) {
         const requests = await api.get<PendingRequest[]>('/api/drivers/requests');
         setPendingRequests(requests);
       } else {
         setPendingRequests([]);
       }
-    } catch (err: any) {
-      console.error('Driver fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    finally { setLoading(false); }
   };
 
-  // Initial fetch and 4-second real-time polling
   useEffect(() => {
     if (user?.role === 'DRIVER') {
       fetchData();
@@ -121,7 +107,6 @@ export default function DriverDashboardPage() {
     }
   }, [user, isOnline]);
 
-  // Toggle Online / Offline status
   const handleToggleOnline = async () => {
     setTogglingStatus(true);
     setError(null);
@@ -136,13 +121,12 @@ export default function DriverDashboardPage() {
         setPendingRequests([]);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to update online status');
+      setError(err.message || 'Failed to update status');
     } finally {
       setTogglingStatus(false);
     }
   };
 
-  // Accept a ride request
   const handleAcceptRide = async (rideId: string) => {
     setActionLoading(true);
     setError(null);
@@ -156,26 +140,22 @@ export default function DriverDashboardPage() {
     }
   };
 
-  // Mark Driver Arrived at Pickup Area
   const handleArrive = async () => {
     if (!activePool) return;
     setActionLoading(true);
-    setError(null);
     try {
       await api.patch(`/api/drivers/pool/${activePool.id}/arrive`);
       await fetchData();
     } catch (err: any) {
-      setError(err.message || 'Failed to update arrival');
+      setError(err.message || 'Failed to mark arrival');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Start Trip (Passengers on board)
   const handleStartTrip = async () => {
     if (!activePool) return;
     setActionLoading(true);
-    setError(null);
     try {
       await api.patch(`/api/drivers/pool/${activePool.id}/start`);
       await fetchData();
@@ -186,12 +166,9 @@ export default function DriverDashboardPage() {
     }
   };
 
-  // Complete Trip (Passengers dropped off, collect fares)
   const handleCompleteTrip = async () => {
-    if (!activePool) return;
-    if (!confirm('Confirm completion of this trip? All fares will be finalized.')) return;
+    if (!activePool || !confirm('Complete this trip? All fares will be finalized.')) return;
     setActionLoading(true);
-    setError(null);
     try {
       await api.patch(`/api/drivers/pool/${activePool.id}/complete`);
       setActivePool(null);
@@ -204,449 +181,294 @@ export default function DriverDashboardPage() {
     }
   };
 
-  // Build map markers
+  // Map markers
   const markers: MapMarker[] = [];
   if (activePool) {
-    markers.push({
-      id: 'pickup',
-      position: [activePool.pickupArea.latitude, activePool.pickupArea.longitude],
-      title: `Pickup: ${activePool.pickupArea.name}`,
-      subtitle: 'Tesla Boarding Zone',
-      type: 'pickup',
-    });
-
+    markers.push({ id: 'pickup', position: [activePool.pickupArea.latitude, activePool.pickupArea.longitude], title: `Pickup: ${activePool.pickupArea.name}`, subtitle: 'Boarding zone', type: 'pickup' });
     activePool.members.forEach((m, i) => {
       const dest = m.rideRequest?.destinationArea;
-      if (dest) {
-        markers.push({
-          id: `drop-${i}`,
-          position: [dest.latitude, dest.longitude],
-          title: `Dropoff: ${dest.name} (${m.passenger.name})`,
-          subtitle: `${m.seats} seat(s)`,
-          type: 'dropoff',
-        });
-      }
+      if (dest) markers.push({ id: `drop-${i}`, position: [dest.latitude, dest.longitude], title: `Dropoff: ${dest.name}`, subtitle: m.passenger.name, type: 'dropoff' });
     });
   }
-
   if (awaitingPool) {
-    markers.push({
-      id: 'awaiting-pickup',
-      position: [awaitingPool.pickupArea.latitude, awaitingPool.pickupArea.longitude],
-      title: `[Queued] Pickup: ${awaitingPool.pickupArea.name}`,
-      subtitle: `Advance Trip (${awaitingPool.occupiedSeats} seat${awaitingPool.occupiedSeats > 1 ? 's' : ''})`,
-      type: 'pickup',
-    });
+    markers.push({ id: 'await-pickup', position: [awaitingPool.pickupArea.latitude, awaitingPool.pickupArea.longitude], title: `[Queued] ${awaitingPool.pickupArea.name}`, subtitle: 'Advance trip', type: 'pickup' });
   }
-
   if (!activePool && !awaitingPool) {
-    pendingRequests.forEach((req) => {
-      markers.push({
-        id: req.id,
-        position: [req.pickupArea.latitude, req.pickupArea.longitude],
-        title: `${req.pickupArea.name} → ${req.destinationArea.name}`,
-        subtitle: `${req.passenger.name} (${req.seatsNeeded} seat)`,
-        type: 'pickup',
-      });
-    });
+    pendingRequests.forEach((req) => markers.push({
+      id: req.id,
+      position: [req.pickupArea.latitude, req.pickupArea.longitude],
+      title: `${req.pickupArea.name} → ${req.destinationArea.name}`,
+      subtitle: `${req.passenger.name} (${req.seatsNeeded} seat)`,
+      type: 'pickup',
+    }));
   }
 
   const teslaName = user?.tesla?.name || 'Bullet';
   const totalSeats = user?.tesla?.totalSeats || 3;
   const occupiedSeats = activePool?.occupiedSeats || 0;
   const seatsAvailable = Math.max(0, totalSeats - occupiedSeats);
-  const isTripStarted = Boolean(
-    activePool?.members.some((m) => m.rideRequest?.status === 'STARTED')
-  );
+  const isTripStarted = Boolean(activePool?.members.some((m) => m.rideRequest?.status === 'STARTED'));
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col">
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Top Header & Vehicle Status */}
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl">
+        {/* Cockpit header */}
+        <div className="glass-card rounded-3xl p-5 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-3xl shrink-0">
-              ⚡
-            </div>
+            <LiquidGlassAvatar
+              fallback={user?.name?.charAt(0) || 'D'}
+              variant="emerald"
+              size="lg"
+              glow
+            />
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-extrabold text-white">
-                  {user?.name}&apos;s Cockpit
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
-                  Pilot of &quot;{teslaName}&quot;
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg font-bold text-white">{user?.name}</h1>
+                <span className="px-2 py-0.5 bg-amber-500/15 border border-amber-500/25 text-amber-300 text-[11px] font-bold rounded-full">
+                  Pilot · "{teslaName}"
                 </span>
               </div>
-              <p className="text-slate-400 text-xs mt-1">
-                Vehicle: <strong className="text-white">{teslaName}</strong> • Capacity:{' '}
-                <strong className="text-white">{totalSeats} Passengers</strong> • Hub:{' '}
-                <strong className="text-white">Banani Road 11</strong>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {totalSeats} seats · Banani Road 11
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Pilot Wallet Balance Badge */}
-            <div className="flex items-center gap-2.5 px-4 py-2 bg-emerald-950/80 border border-emerald-500/30 rounded-2xl text-xs font-bold text-emerald-300">
-              <Wallet className="w-4 h-4 text-emerald-400 shrink-0" />
-              <div>
-                <span className="block text-[10px] text-slate-400 font-normal uppercase tracking-wider">Pilot Wallet</span>
-                <span className="text-white text-sm font-extrabold">৳{((user?.walletBalancePaisa || 0) / 100).toFixed(0)}</span>
-              </div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Wallet */}
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-semibold text-emerald-400">
+              <Wallet className="w-3.5 h-3.5" />
+              ৳{((user?.walletBalancePaisa || 0) / 100).toFixed(0)}
+              <span className="text-[10px] text-slate-500 font-normal">wallet</span>
             </div>
 
             <Link
               href="/driver/history"
-              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl text-xs font-semibold text-slate-300 transition"
+              className="px-3 py-2 glass border border-white/[0.06] rounded-xl text-xs font-medium text-slate-400 hover:text-white transition"
             >
-              Trip History
+              History
             </Link>
 
-            {/* Online / Offline Toggle */}
+            {/* Online toggle */}
             <button
               onClick={handleToggleOnline}
               disabled={togglingStatus}
-              className={`px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center gap-2 ${
+              className={`px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 ${
                 isOnline
-                  ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                  ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20'
+                  : 'bg-white/[0.06] hover:bg-white/[0.09] text-slate-300 border border-white/[0.08]'
               }`}
             >
-              <span
-                className={`w-2.5 h-2.5 rounded-full ${
-                  isOnline ? 'bg-slate-950 animate-pulse' : 'bg-slate-500'
-                }`}
-              />
-              {togglingStatus ? (
-                'Updating...'
-              ) : isOnline ? (
-                'ONLINE & ACCEPTING'
-              ) : (
-                'OFFLINE (TAP TO GO ONLINE)'
-              )}
+              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-slate-950 animate-pulse' : 'bg-slate-500'}`} />
+              {togglingStatus ? 'Updating...' : isOnline ? 'Online' : 'Offline'}
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-300 text-sm flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold">Driver Alert</p>
-              <p className="text-xs text-rose-300/90 mt-0.5">{error}</p>
-            </div>
+          <div className="mb-5 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-300 text-sm flex items-start gap-3">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: Pool Management & Requests */}
-          <div className="lg:col-span-6 space-y-6">
-            {/* Active Pool Card */}
-            {activePool ? (
-              <div className="bg-slate-900/90 border border-emerald-500/40 rounded-3xl p-6 shadow-2xl space-y-5">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                      Active Pool Trip
-                    </span>
-                    <h2 className="text-lg font-bold text-white mt-2 flex items-center gap-2">
-                      <span>Pickup: {activePool.pickupArea.name}</span>
-                    </h2>
-                  </div>
-
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block uppercase">Status</span>
-                    <span className="font-extrabold text-emerald-400 text-sm">
-                      {activePool.status}
-                    </span>
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left: Pool management */}
+          <div className="lg:col-span-6 space-y-4">
+            {/* Active Pool */}
+            {activePool && (
+              <div className="glass-card rounded-3xl p-5 space-y-4 border border-emerald-500/15">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full">
+                    Active Pool
+                  </span>
+                  <span className="text-xs text-slate-500">{activePool.status}</span>
                 </div>
 
-                {/* Capacity Progress Bar */}
                 <div>
-                  <div className="flex justify-between text-xs font-semibold mb-2">
-                    <span className="text-slate-300">
-                      Bullet Seat Capacity ({occupiedSeats} / {totalSeats} seats)
-                    </span>
-                    <span className={seatsAvailable === 0 ? 'text-amber-400' : 'text-emerald-400'}>
-                      {seatsAvailable === 0 ? 'FULL (3/3)' : `${seatsAvailable} seat(s) available`}
+                  <p className="text-sm font-bold text-white mb-3">Pickup: {activePool.pickupArea.name}</p>
+                  {/* Capacity bar */}
+                  <div className="mb-1 flex justify-between text-xs">
+                    <span className="text-slate-400">{occupiedSeats}/{totalSeats} seats</span>
+                    <span className={seatsAvailable === 0 ? 'text-amber-400 font-semibold' : 'text-emerald-400'}>
+                      {seatsAvailable === 0 ? 'Full' : `${seatsAvailable} available`}
                     </span>
                   </div>
-                  <div className="w-full bg-slate-800 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                  <div className="w-full bg-white/[0.06] h-2 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        occupiedSeats === 3
-                          ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                          : 'bg-emerald-500'
-                      }`}
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                       style={{ width: `${(occupiedSeats / totalSeats) * 100}%` }}
                     />
                   </div>
                 </div>
 
-                {/* Passengers List */}
-                <div className="space-y-2.5">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    Onboard / Reserved Passengers ({activePool.members.length})
-                  </h3>
-                  {activePool.members.map((member) => (
-                    <div
-                      key={member.id}
-                      className="p-3 bg-slate-800/80 rounded-2xl border border-slate-700/80 flex items-center justify-between text-xs"
-                    >
+                {/* Passengers */}
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Onboard ({activePool.members.length})</p>
+                  {activePool.members.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-xl border border-white/[0.05] text-xs">
                       <div>
-                        <span className="font-bold text-white block text-sm">
-                          {member.passenger.name}
-                        </span>
-                        <span className="text-slate-400 text-[11px]">
-                          Destination: {member.rideRequest?.destinationArea?.name || 'Dhaka Hub'}
-                        </span>
+                        <span className="font-bold text-white block">{m.passenger.name}</span>
+                        <span className="text-slate-500">→ {m.rideRequest?.destinationArea?.name || 'Hub'}</span>
                       </div>
                       <div className="text-right">
-                        <span className="font-bold text-emerald-400 block">
-                          ৳{(member.farePaisa / 100).toFixed(0)}
-                        </span>
-                        <span className="text-[10px] text-slate-400 block">
-                          {member.seats} seat{member.seats > 1 ? 's' : ''} {member.seats > 1 ? `(${member.seats === 2 ? '1.75x' : '2.40x'})` : '(Solo)'}
-                        </span>
-                        {member.seats > 1 && (
-                          <span className="text-[9px] text-amber-300/90 block font-semibold">
-                            Solo fare credited to Pilot
-                          </span>
-                        )}
+                        <span className="font-bold text-emerald-400 block">৳{(m.farePaisa / 100).toFixed(0)}</span>
+                        <span className="text-[10px] text-slate-600">{m.seats} {m.seats > 1 ? `seats (${m.seats === 2 ? '1.75×' : '2.40×'})` : 'seat (Solo)'}</span>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Lifecycle Step Action Buttons */}
-                <div className="pt-2 border-t border-slate-800 space-y-3">
+                {/* Action buttons */}
+                <div className="pt-1 border-t border-white/[0.06] space-y-2">
                   {activePool.status === 'ACTIVE' && (
                     <button
                       onClick={handleArrive}
                       disabled={actionLoading}
-                      className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold rounded-2xl shadow-xl shadow-emerald-500/20 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                      className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-2xl shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
                     >
-                      {actionLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <CheckCircle className="w-4 h-4" />
-                      )}
-                      I&apos;ve Arrived at {activePool.pickupArea.name} (Notify Passengers)
+                      {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      Arrived at {activePool.pickupArea.name}
                     </button>
                   )}
 
                   {activePool.status === 'EN_ROUTE' && (
-                    <div className="space-y-2">
-                      {!isTripStarted ? (
-                        <button
-                          onClick={handleStartTrip}
-                          disabled={actionLoading}
-                          className="w-full py-3.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold rounded-2xl shadow-xl shadow-cyan-500/20 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
-                        >
-                          {actionLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <ArrowRight className="w-4 h-4" />
-                          )}
-                          Depart &amp; Start Trip (All Onboard)
-                        </button>
-                      ) : (
-                        <button
-                          onClick={handleCompleteTrip}
-                          disabled={actionLoading}
-                          className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold rounded-2xl shadow-xl shadow-emerald-500/20 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
-                        >
-                          {actionLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <CheckCircle className="w-4 h-4" />
-                          )}
-                          Complete Trip &amp; Collect Fares
-                        </button>
-                      )}
-                    </div>
+                    !isTripStarted ? (
+                      <button
+                        onClick={handleStartTrip}
+                        disabled={actionLoading}
+                        className="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-2xl shadow-lg shadow-cyan-500/20 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                      >
+                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                        Depart — All Onboard
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleCompleteTrip}
+                        disabled={actionLoading}
+                        className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-2xl shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                      >
+                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                        Complete &amp; Collect Fares
+                      </button>
+                    )
                   )}
                 </div>
               </div>
-            ) : null}
+            )}
 
-            {/* Awaiting / Advance Trip Card */}
+            {/* Awaiting pool */}
             {awaitingPool && (
-              <div className="bg-slate-900/90 border border-purple-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
-                <div className="flex items-center justify-between border-b border-purple-500/20 pb-4">
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-300 bg-purple-500/20 px-2.5 py-1 rounded-full border border-purple-500/40 flex items-center gap-1.5 w-fit">
-                      <Clock className="w-3 h-3 text-purple-400 animate-pulse" />
-                      Awaiting Advance Trip (1 Queued)
-                    </span>
-                    <h2 className="text-lg font-bold text-white mt-2 flex items-center gap-2">
-                      <span>Pickup: {awaitingPool.pickupArea.name}</span>
-                    </h2>
-                  </div>
-
-                  <div className="text-right">
-                    <span className="text-[10px] text-purple-300 font-bold uppercase block">Next in Queue</span>
-                    <span className="font-semibold text-purple-400 text-xs">
-                      Starts after current trip
-                    </span>
-                  </div>
+              <div className="glass-card rounded-3xl p-5 space-y-4 border border-purple-500/15">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-purple-300 bg-purple-500/10 px-2.5 py-1 rounded-full">
+                    <Clock className="w-3 h-3 animate-pulse" /> Queued Advance Trip
+                  </span>
+                  <span className="text-xs text-slate-500">Starts after current</span>
                 </div>
 
-                {/* Capacity Progress Bar for Awaiting Trip */}
-                <div>
-                  <div className="flex justify-between text-xs font-semibold mb-2">
-                    <span className="text-slate-300">
-                      Reserved Advance Seats ({awaitingPool.occupiedSeats} / {totalSeats} seats)
-                    </span>
-                    <span className="text-purple-300 font-semibold">
-                      {totalSeats - awaitingPool.occupiedSeats} seat(s) remaining
-                    </span>
+                <p className="text-sm font-bold text-white">Pickup: {awaitingPool.pickupArea.name}</p>
+
+                <div className="mb-1">
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-slate-400">{awaitingPool.occupiedSeats}/{totalSeats} seats reserved</span>
+                    <span className="text-purple-300">{totalSeats - awaitingPool.occupiedSeats} remaining</span>
                   </div>
-                  <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-purple-500/20">
+                  <div className="w-full bg-white/[0.06] h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-400 transition-all duration-500"
+                      className="h-full bg-purple-500 rounded-full transition-all"
                       style={{ width: `${(awaitingPool.occupiedSeats / totalSeats) * 100}%` }}
                     />
                   </div>
                 </div>
 
-                {/* Passenger list */}
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    Queued Passenger ({awaitingPool.members.length})
-                  </h3>
-                  {awaitingPool.members.map((member) => (
-                    <div
-                      key={member.id}
-                      className="p-3 bg-slate-800/80 rounded-2xl border border-purple-500/20 flex items-center justify-between text-xs"
-                    >
+                  {awaitingPool.members.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-xl border border-purple-500/10 text-xs">
                       <div>
-                        <span className="font-bold text-white block text-sm">
-                          {member.passenger.name}
-                        </span>
-                        <span className="text-slate-400 text-[11px]">
-                          Destination: {member.rideRequest?.destinationArea?.name || 'Dhaka Hub'}
-                        </span>
+                        <span className="font-bold text-white block">{m.passenger.name}</span>
+                        <span className="text-slate-500">→ {m.rideRequest?.destinationArea?.name || 'Hub'}</span>
                       </div>
-                      <div className="text-right">
-                        <span className="font-bold text-emerald-400 block">
-                          ৳{(member.farePaisa / 100).toFixed(0)}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {member.seats} {member.seats === 1 ? 'seat' : 'seats'}
-                        </span>
-                      </div>
+                      <span className="font-bold text-emerald-400">৳{(m.farePaisa / 100).toFixed(0)}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="p-3 bg-purple-950/40 border border-purple-500/30 rounded-2xl text-[11px] text-purple-200 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-purple-400 shrink-0" />
-                  <span>
-                    This trip is locked in advance and will automatically activate once your active trip is completed.
-                  </span>
+                <div className="flex items-center gap-2 text-[11px] text-slate-500 bg-white/[0.02] rounded-xl px-3 py-2.5 border border-white/[0.04]">
+                  <Clock className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  Activates automatically once current trip completes.
                 </div>
               </div>
             )}
 
-            {/* Pending Ride Requests */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+            {/* Pending requests */}
+            <div className="glass-card rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <Users className="w-4 h-4 text-emerald-400" />
-                    Incoming Ride Requests
+                  <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Users className="w-4 h-4 text-emerald-400" /> Incoming Requests
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {isOnline ? 'Passengers currently waiting in Dhaka' : 'Go online to see requests'}
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {isOnline ? 'Passengers waiting in Dhaka' : 'Go online to see requests'}
                   </p>
                 </div>
-                <button
-                  onClick={fetchData}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg transition"
-                  title="Refresh requests"
-                >
+                <button onClick={fetchData} className="p-1.5 text-slate-500 hover:text-white rounded-lg transition">
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
               </div>
 
               {!isOnline ? (
-                <div className="p-8 text-center bg-slate-800/40 rounded-2xl border border-slate-800">
-                  <p className="text-sm font-semibold text-slate-300">Driver Status is Offline</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Click &quot;ONLINE&quot; above to start receiving ride requests.
-                  </p>
+                <div className="p-8 text-center bg-white/[0.02] rounded-2xl">
+                  <p className="text-sm font-semibold text-slate-400">Driver is Offline</p>
+                  <p className="text-xs text-slate-600 mt-1">Toggle Online above to receive requests.</p>
                 </div>
               ) : pendingRequests.length === 0 ? (
-                <div className="p-8 text-center bg-slate-800/40 rounded-2xl border border-slate-800">
-                  <p className="text-sm font-semibold text-slate-300">No Pending Requests</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Waiting for passengers like Nusrat, Rafiq, or Shirin to book a seat.
-                  </p>
+                <div className="p-8 text-center bg-white/[0.02] rounded-2xl">
+                  <p className="text-sm font-semibold text-slate-400">No Requests Yet</p>
+                  <p className="text-xs text-slate-600 mt-1">Waiting for passengers to book seats.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {pendingRequests.map((req) => (
-                    <div
-                      key={req.id}
-                      className="p-4 bg-slate-800/90 rounded-2xl border border-slate-700/80 hover:border-emerald-500/40 transition flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2 text-[11px] text-slate-400 mb-1">
-                          <span className="font-bold text-white">{req.passenger.name}</span>
-                          <span>•</span>
-                          <span>
-                            {req.seatsNeeded} {req.seatsNeeded === 1 ? 'Seat' : 'Seats'} {req.seatsNeeded > 1 ? `(${req.seatsNeeded === 2 ? '1.75x' : '2.40x'})` : '(Solo)'}
-                          </span>
-                          <span>•</span>
-                          <span>{req.distanceKm} km</span>
-                        </div>
-                        <div className="font-bold text-sm text-white flex items-center gap-2">
-                          <span>{req.pickupArea.name}</span>
-                          <span className="text-slate-500">→</span>
-                          <span className="text-emerald-400">{req.destinationArea.name}</span>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Fare: <strong className="text-emerald-400">৳{(req.estimatedFarePaisa / 100).toFixed(0)}</strong> • Method: {req.paymentMethod}
-                          {req.seatsNeeded > 1 && (
-                            <span className="text-slate-400 ml-1">
-                              (Pilot credit: Solo 1x)
-                            </span>
-                          )}
-                        </p>
-                      </div>
+                  {pendingRequests.map((req) => {
+                    const canPoolIntoActive = Boolean(activePool && activePool.status === 'ACTIVE' && activePool.pickupArea.id === req.pickupArea.id && seatsAvailable >= req.seatsNeeded);
+                    const isAdvanceAccept = Boolean(activePool && !canPoolIntoActive);
+                    const isAdvanceLimitReached = Boolean(activePool && awaitingPool && !canPoolIntoActive);
+                    const canAccept = !isAdvanceLimitReached && (!activePool || canPoolIntoActive || (!awaitingPool && req.seatsNeeded <= totalSeats));
 
-                      {(() => {
-                        const canPoolIntoActive = Boolean(
-                          activePool &&
-                            activePool.status === 'ACTIVE' &&
-                            activePool.pickupArea.id === req.pickupArea.id &&
-                            seatsAvailable >= req.seatsNeeded
-                        );
+                    return (
+                      <div key={req.id} className="p-4 bg-white/[0.03] rounded-2xl border border-white/[0.05] hover:border-emerald-500/15 transition">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1.5 flex-wrap">
+                              <span className="font-bold text-white">{req.passenger.name}</span>
+                              <span>·</span>
+                              <span>{req.seatsNeeded} {req.seatsNeeded > 1 ? `seats (${req.seatsNeeded === 2 ? '1.75×' : '2.40×'})` : 'seat'}</span>
+                              <span>·</span>
+                              <span>{req.distanceKm} km</span>
+                            </div>
+                            <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                              {req.pickupArea.name}
+                              <span className="text-slate-600">→</span>
+                              <span className="text-emerald-400">{req.destinationArea.name}</span>
+                            </div>
+                            <div className="text-xs text-slate-500 mt-0.5">
+                              ৳{(req.estimatedFarePaisa / 100).toFixed(0)} · {req.paymentMethod}
+                              {req.seatsNeeded > 1 && <span className="ml-1.5 text-slate-600">(Pilot credit: Solo 1×)</span>}
+                            </div>
+                          </div>
 
-                        const isAdvanceAccept = Boolean(activePool && !canPoolIntoActive);
-                        const isAdvanceLimitReached = Boolean(activePool && awaitingPool && !canPoolIntoActive);
-                        const canAccept =
-                          !isAdvanceLimitReached &&
-                          (!activePool ||
-                            canPoolIntoActive ||
-                            (!awaitingPool && req.seatsNeeded <= totalSeats));
-
-                        return (
                           <button
                             onClick={() => handleAcceptRide(req.id)}
                             disabled={Boolean(actionLoading || !canAccept)}
-                            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-md disabled:opacity-40 flex items-center justify-center gap-1.5 shrink-0 ${
+                            className={`px-3.5 py-2 rounded-xl font-bold text-xs transition shrink-0 flex items-center gap-1.5 ${
                               isAdvanceLimitReached
-                                ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                                ? 'bg-white/[0.04] text-slate-500 cursor-not-allowed'
                                 : isAdvanceAccept
-                                ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/20'
-                                : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                            }`}
+                                ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/20'
+                                : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20'
+                            } disabled:opacity-40`}
                           >
                             {actionLoading ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -657,38 +479,33 @@ export default function DriverDashboardPage() {
                             ) : (
                               <Zap className="w-3.5 h-3.5 fill-current" />
                             )}
-                            {isAdvanceLimitReached
-                              ? 'Queue Full (1 Advance Max)'
-                              : isAdvanceAccept
-                              ? 'Accept Advance Trip'
-                              : 'Accept Ride'}
+                            {isAdvanceLimitReached ? 'Queue Full' : isAdvanceAccept ? 'Advance' : 'Accept'}
                           </button>
-                        );
-                      })()}
-                    </div>
-                  ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Right Column: Live Map */}
-          <div className="lg:col-span-6 bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
+          {/* Right: Map */}
+          <div className="lg:col-span-6 glass-card rounded-3xl p-4">
+            <div className="flex items-center justify-between mb-3 px-1">
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-emerald-400" />
-                <span className="font-bold text-sm text-white">Live Dhaka Navigation Radar</span>
+                <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-xs font-semibold text-slate-300">Live Navigation Radar</span>
               </div>
-              <span className="text-xs text-slate-400">
-                {activePool ? `${activePool.members.length} Active Rider(s)` : `${pendingRequests.length} Pending Call(s)`}
+              <span className="text-xs text-slate-500">
+                {activePool ? `${activePool.members.length} rider(s)` : `${pendingRequests.length} pending`}
               </span>
             </div>
-
             <DynamicMap
-              center={[23.7937, 90.4045]} // Centered on Banani
+              center={[23.7937, 90.4045]}
               zoom={13}
               markers={markers}
-              className="h-[560px] w-full rounded-2xl overflow-hidden shadow-2xl border border-slate-700/80"
+              className="h-[560px] w-full rounded-xl overflow-hidden border border-white/[0.06]"
             />
           </div>
         </div>
