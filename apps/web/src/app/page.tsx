@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import DynamicMap, { MapMarker } from '../components/DynamicMap';
 import { api } from '../lib/api';
-import { LiquidGlassAvatar } from '@/components/lightswind/liquid-glass-avatar';
 import { useAuth } from '../context/AuthContext';
 import {
   Zap,
@@ -48,13 +47,6 @@ const FALLBACK_AREAS: Area[] = [
   { id: 10, name: 'Motijheel', latitude: 23.7273, longitude: 90.4212 },
   { id: 11, name: 'Shahbag', latitude: 23.7373, longitude: 90.3962 },
   { id: 12, name: 'Tejgaon', latitude: 23.7628, longitude: 90.3913 },
-];
-
-const CAST = [
-  { name: 'Jashim', role: 'Tesla Driver', sub: 'Pilot of "Bullet" · 3 seats', color: 'amber' as const, variant: 'emerald' as const, desc: 'Leaning against his 3-seat Tesla at Banani Road 11. Wants all seats filled.' },
-  { name: 'Nusrat', role: 'Passenger #1', sub: 'Banani → Mohakhali', color: 'emerald' as const, variant: 'emerald' as const, desc: 'Running late for work. Books the first seat. Welcomes co-riders.' },
-  { name: 'Rafiq', role: 'Passenger #2', sub: 'Banani → Gulshan 1', color: 'cyan' as const, variant: 'cyan' as const, desc: 'Joins 2 mins later. Pool matching drops both fares by 20%.' },
-  { name: 'Shirin', role: 'Passenger #3', sub: 'Banani → Dhanmondi', color: 'purple' as const, variant: 'purple' as const, desc: 'Takes the last seat. Pool discount jumps to 30% for all three.' },
 ];
 
 export default function HomePage() {
@@ -127,7 +119,7 @@ export default function HomePage() {
           <div className="text-center max-w-2xl mx-auto mb-14">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-6">
               <Zap className="w-3 h-3 fill-current" />
-              Banani Rush-Hour Mobility
+              Rush-Hour Mobility
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1] mb-5">
@@ -280,38 +272,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Story Cast */}
-      <section id="story-cast" className="py-20 border-t border-white/[0.04]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold text-white mb-2">Meet the Story Cast</h2>
-            <p className="text-sm text-slate-400">The real characters navigating Banani Road 11 at 8:41 AM.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {CAST.map((c) => (
-              <div key={c.name} className="glass-card rounded-2xl p-5 space-y-4">
-                <div className="flex items-center gap-3">
-                  <LiquidGlassAvatar
-                    fallback={c.name.charAt(0)}
-                    variant={c.variant}
-                    size="md"
-                    glow
-                  />
-                  <div>
-                    <div className="font-bold text-sm text-white">{c.name}</div>
-                    <div className="text-[11px] text-emerald-400 font-semibold">{c.role}</div>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] text-slate-500 font-medium mb-1">{c.sub}</div>
-                  <p className="text-xs text-slate-400 leading-relaxed">{c.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* How It Works */}
       <section id="how-it-works" className="py-20 border-t border-white/[0.04]">
