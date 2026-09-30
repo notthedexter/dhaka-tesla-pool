@@ -169,9 +169,23 @@ dhaka-tesla-pool/
 
 ---
 
-## 🛠️ Setup & Running
+## 🛠️ Setup & Deployment
 
-### Option A: Running with Docker (Recommended)
+### Option A: 1-Click Import on Vercel (Zero Config)
+
+The repository includes a root `vercel.json`, root multi-stage `Dockerfile`, and Next.js standalone dynamic rewrites:
+
+1. **Import directly in Vercel:**
+   * Go to [vercel.com/new](https://vercel.com/new) and select your GitHub repository.
+   * Vercel will auto-detect `vercel.json` (`framework: nextjs`, `buildCommand: npm run build:web`, `outputDirectory: apps/web/.next`).
+2. **Environment Variables (Optional):**
+   * `NEXT_PUBLIC_API_URL`: Your hosted API URL (e.g., `https://api.yourdomain.com`).
+   * `BACKEND_URL`: Alternatively, provide `BACKEND_URL` for Next.js to proxy `/api/*` endpoints directly without CORS.
+3. **Deploy:** Click **Deploy**. Vercel will build and deploy the Next.js frontend instantly.
+
+---
+
+### Option B: Running with Docker (Full Stack)
 
 1. **Clone the repository:**
    ```bash
