@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import authRouter from './routes/auth';
 
 dotenv.config();
 
@@ -22,6 +23,9 @@ app.get('/api/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Authentication routes
+app.use('/api/auth', authRouter);
 
 // Centralized error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
