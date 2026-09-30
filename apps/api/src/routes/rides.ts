@@ -2,9 +2,9 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
-import { getDrivingRoute } from '../services/osrm';
+import { getDrivingRoute, getHaversineDistanceKm } from '../services/osrm';
 import { calculateFare } from '../services/fare';
-import { PaymentMethod, RideStatus, PoolMemberStatus } from '@prisma/client';
+import { PaymentMethod, RideStatus, PoolMemberStatus, PoolStatus } from '@prisma/client';
 
 const router = Router();
 
@@ -186,7 +186,71 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
       return;
     }
 
-    res.json(ride);
+    // Check if this ride is an advance booking (driver currently on prior trip)
+    let advanceBooking: {
+      isAwaiting: boolean;
+      estimatedWaitMin: number;
+      priorPoolStatus: string;
+      priorDestinationName: string;
+      driverName: string;
+      teslaName: string;
+      message: string;
+    } | null = null;
+
+    if (ride.pool) {
+      const priorPool = await prisma.pool.findFirst({
+        where: {
+          driverId: ride.pool.driverId,
+          status: { in: [PoolStatus.ACTIVE, PoolStatus.EN_ROUTE] },
+          createdAt: { lt: ride.pool.createdAt },
+        },
+        include: {
+          pickupArea: true,
+          members: {
+            where: { status: { not: PoolMemberStatus.CANCELLED } },
+            include: {
+              rideRequest: {
+                include: { destinationArea: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (priorPool) {
+        let estimatedWaitMin = 10;
+        const lastMemberWithDest = priorPool.members.find(
+          (m) => m.rideRequest?.destinationArea
+        );
+        const lastDest = lastMemberWithDest?.rideRequest?.destinationArea;
+
+        if (lastDest) {
+          const distToPickup = getHaversineDistanceKm(
+            { lat: lastDest.latitude, lng: lastDest.longitude },
+            { lat: ride.pickupArea.latitude, lng: ride.pickupArea.longitude }
+          );
+          // Urban speed ~15 km/h + 4 mins buffer for dropoff & turnaround
+          estimatedWaitMin = Math.max(5, Math.round((distToPickup / 15) * 60) + 4);
+        }
+
+        advanceBooking = {
+          isAwaiting: true,
+          estimatedWaitMin,
+          priorPoolStatus: priorPool.status,
+          priorDestinationName: lastDest?.name || 'Dhaka dropoff',
+          driverName: ride.pool.driver.name,
+          teslaName: ride.pool.tesla.name,
+          message: `Your driver ${ride.pool.driver.name} is currently completing a prior trip to ${
+            lastDest?.name || 'destination'
+          } in ${ride.pool.tesla.name}. Your Tesla will head to ${ride.pickupArea.name} immediately after.`,
+        };
+      }
+    }
+
+    res.json({
+      ...ride,
+      advanceBooking,
+    });
   } catch (err: any) {
     console.error('Fetch ride detail error:', err);
     res.status(500).json({

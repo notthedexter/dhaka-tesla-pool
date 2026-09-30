@@ -55,6 +55,15 @@ interface RideDetail {
       };
     }>;
   } | null;
+  advanceBooking?: {
+    isAwaiting: boolean;
+    estimatedWaitMin: number;
+    priorPoolStatus: string;
+    priorDestinationName: string;
+    driverName: string;
+    teslaName: string;
+    message: string;
+  } | null;
   payment?: {
     amountPaisa: number;
     method: string;
@@ -290,6 +299,55 @@ export default function RideTrackingPage({ params }: { params: Promise<{ id: str
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Ride Cards */}
           <div className="lg:col-span-5 space-y-6">
+            {/* Advance Booking / Awaiting Notice */}
+            {ride.advanceBooking?.isAwaiting && (
+              <div className="bg-gradient-to-br from-purple-950/70 via-slate-900 to-slate-900 border border-purple-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/40 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-3 h-3 text-purple-400 animate-pulse" />
+                    Advance Trip Queued
+                  </span>
+                  <span className="text-xs font-bold text-purple-300 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    Confirmed Reservation
+                  </span>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-purple-500/20 border border-purple-500/30 flex flex-col items-center justify-center text-purple-300 shrink-0">
+                    <Clock className="w-6 h-6 text-purple-400 mb-0.5" />
+                    <span className="text-[10px] font-extrabold text-white">WAIT</span>
+                  </div>
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-white">
+                        ~{ride.advanceBooking.estimatedWaitMin}
+                      </span>
+                      <span className="text-sm font-bold text-purple-300">mins estimated wait</span>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                      {ride.advanceBooking.message}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-purple-500/20 grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2.5 bg-slate-950/60 rounded-xl border border-purple-500/20">
+                    <span className="text-[10px] uppercase text-slate-400 font-bold block">Current Leg</span>
+                    <span className="font-semibold text-slate-200">
+                      Finishing dropoff at {ride.advanceBooking.priorDestinationName}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-purple-950/30 rounded-xl border border-purple-500/30">
+                    <span className="text-[10px] uppercase text-purple-300 font-bold block">Next Leg</span>
+                    <span className="font-bold text-emerald-400">
+                      Picking you up at {ride.pickupArea.name}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Driver & Tesla Card */}
             {ride.pool ? (
               <div className="bg-slate-900/90 border border-amber-500/30 rounded-3xl p-6 shadow-2xl">

@@ -119,20 +119,23 @@ router.post('/accept/:rideId', requireAuth, requireRole('DRIVER'), async (req: R
       return;
     }
 
-    // Atomic transaction: create or add to pool with strict capacity check
+    // Atomic transaction: create, pool, or queue advance trip with strict 1-advance-trip limit
     const result = await prisma.$transaction(async (tx) => {
-      // Check if driver has an existing ACTIVE pool
-      let pool = await tx.pool.findFirst({
+      // Find all ongoing pools for this driver (oldest is current, second is advance)
+      const existingPools = await tx.pool.findMany({
         where: {
           driverId: req.user!.userId,
-          status: PoolStatus.ACTIVE,
+          status: { in: [PoolStatus.ACTIVE, PoolStatus.EN_ROUTE] },
         },
+        orderBy: { createdAt: 'asc' },
         include: { tesla: true },
       });
 
-      if (!pool) {
-        // Create new pool for this driver
-        pool = await tx.pool.create({
+      let targetPool;
+
+      if (existingPools.length === 0) {
+        // No trips in progress: create initial active pool
+        targetPool = await tx.pool.create({
           data: {
             teslaId: tesla.id,
             driverId: req.user!.userId,
@@ -143,32 +146,49 @@ router.post('/accept/:rideId', requireAuth, requireRole('DRIVER'), async (req: R
           include: { tesla: true },
         });
       } else {
-        // Enforce same-pickup area rule
-        if (pool.pickupAreaId !== ride.pickupAreaId) {
-          throw new Error('Cannot pool passengers from different pickup areas in the same trip');
-        }
+        const currentPool = existingPools[0];
+        const canPoolIntoCurrent =
+          currentPool.status === PoolStatus.ACTIVE &&
+          currentPool.pickupAreaId === ride.pickupAreaId &&
+          currentPool.occupiedSeats + ride.seatsNeeded <= tesla.totalSeats;
 
-        // Enforce Bullet's 3-seat limit
-        if (pool.occupiedSeats + ride.seatsNeeded > pool.tesla.totalSeats) {
-          throw new Error(
-            `Tesla seat capacity exceeded! Available: ${pool.tesla.totalSeats - pool.occupiedSeats}, Requested: ${ride.seatsNeeded}`
-          );
-        }
+        if (canPoolIntoCurrent) {
+          // Add into current active pool
+          targetPool = await tx.pool.update({
+            where: { id: currentPool.id },
+            data: {
+              occupiedSeats: { increment: ride.seatsNeeded },
+            },
+            include: { tesla: true },
+          });
+        } else {
+          // Needs an advance / awaiting trip
+          const hasAdvanceTrip = existingPools.length >= 2;
 
-        // Increment occupied seats
-        pool = await tx.pool.update({
-          where: { id: pool.id },
-          data: {
-            occupiedSeats: { increment: ride.seatsNeeded },
-          },
-          include: { tesla: true },
-        });
+          if (hasAdvanceTrip) {
+            throw new Error(
+              'Driver already has an active trip and 1 advance trip queued. Maximum 1 advance trip allowed.'
+            );
+          } else {
+            // Driver has 1 active trip, create their 1 allowed advance trip!
+            targetPool = await tx.pool.create({
+              data: {
+                teslaId: tesla.id,
+                driverId: req.user!.userId,
+                pickupAreaId: ride.pickupAreaId,
+                status: PoolStatus.ACTIVE,
+                occupiedSeats: ride.seatsNeeded,
+              },
+              include: { tesla: true },
+            });
+          }
+        }
       }
 
       // Create PoolMember
       const poolMember = await tx.poolMember.create({
         data: {
-          poolId: pool.id,
+          poolId: targetPool.id,
           rideRequestId: ride.id,
           passengerId: ride.passengerId,
           seats: ride.seatsNeeded,
@@ -182,7 +202,7 @@ router.post('/accept/:rideId', requireAuth, requireRole('DRIVER'), async (req: R
         where: { id: ride.id },
         data: {
           status: RideStatus.MATCHED,
-          poolId: pool.id,
+          poolId: targetPool.id,
         },
         include: {
           pickupArea: true,
@@ -190,7 +210,7 @@ router.post('/accept/:rideId', requireAuth, requireRole('DRIVER'), async (req: R
         },
       });
 
-      return { pool, poolMember, ride: updatedRide };
+      return { pool: targetPool, poolMember, ride: updatedRide };
     });
 
     res.json({
@@ -207,14 +227,15 @@ router.post('/accept/:rideId', requireAuth, requireRole('DRIVER'), async (req: R
   }
 });
 
-// GET /api/drivers/pool/current - Get active pool with all members
+// GET /api/drivers/pool/current - Get active and awaiting pools with all members
 router.get('/pool/current', requireAuth, requireRole('DRIVER'), async (req: Request, res: Response) => {
   try {
-    const pool = await prisma.pool.findFirst({
+    const pools = await prisma.pool.findMany({
       where: {
         driverId: req.user!.userId,
         status: { in: [PoolStatus.ACTIVE, PoolStatus.EN_ROUTE] },
       },
+      orderBy: { createdAt: 'asc' }, // Oldest is current, second is awaiting
       include: {
         tesla: true,
         pickupArea: true,
@@ -230,7 +251,26 @@ router.get('/pool/current', requireAuth, requireRole('DRIVER'), async (req: Requ
       },
     });
 
-    res.json(pool);
+    const currentPool = pools[0] || null;
+    const awaitingPool = pools[1] || null;
+
+    res.json({
+      currentPool,
+      awaitingPool,
+      // Backwards-compatibility properties
+      ...(currentPool
+        ? {
+            id: currentPool.id,
+            teslaId: currentPool.teslaId,
+            status: currentPool.status,
+            occupiedSeats: currentPool.occupiedSeats,
+            pickupArea: currentPool.pickupArea,
+            tesla: currentPool.tesla,
+            members: currentPool.members,
+            createdAt: currentPool.createdAt,
+          }
+        : {}),
+    });
   } catch (err: any) {
     console.error('Fetch current pool error:', err);
     res.status(500).json({
@@ -362,6 +402,19 @@ router.patch('/pool/:poolId/complete', requireAuth, requireRole('DRIVER'), async
     }
 
     assertPoolTransition(pool.status, PoolStatus.COMPLETED);
+
+    // Enforce that trip has actually been started before it can be completed
+    const hasStarted = pool.members.some(
+      (m) => m.rideRequest.status === RideStatus.STARTED
+    );
+
+    if (!hasStarted) {
+      res.status(400).json({
+        error: 'TripNotStarted',
+        message: 'Cannot complete trip before starting it. You must start the trip first.',
+      });
+      return;
+    }
 
     const completed = await prisma.$transaction(async (tx) => {
       // 1. Mark pool completed

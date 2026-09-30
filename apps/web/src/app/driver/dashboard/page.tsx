@@ -43,6 +43,7 @@ interface ActivePool {
   occupiedSeats: number;
   pickupArea: { id: number; name: string; latitude: number; longitude: number };
   tesla: { name: string; totalSeats: number; isOnline: boolean };
+  createdAt?: string;
   members: Array<{
     id: string;
     passengerId: string;
@@ -63,6 +64,7 @@ export default function DriverDashboardPage() {
 
   const [isOnline, setIsOnline] = useState<boolean>(false);
   const [activePool, setActivePool] = useState<ActivePool | null>(null);
+  const [awaitingPool, setAwaitingPool] = useState<ActivePool | null>(null);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
@@ -85,9 +87,15 @@ export default function DriverDashboardPage() {
   // Fetch driver data (pool and pending requests)
   const fetchData = async () => {
     try {
-      // 1. Fetch active pool
-      const pool = await api.get<ActivePool | null>('/api/drivers/pool/current');
-      setActivePool(pool);
+      // 1. Fetch active and awaiting pools
+      const res = await api.get<any>('/api/drivers/pool/current');
+      if (res) {
+        setActivePool(res.currentPool || null);
+        setAwaitingPool(res.awaitingPool || null);
+      } else {
+        setActivePool(null);
+        setAwaitingPool(null);
+      }
 
       // 2. If online and not completed, fetch pending requests
       if (isOnline) {
@@ -217,7 +225,19 @@ export default function DriverDashboardPage() {
         });
       }
     });
-  } else {
+  }
+
+  if (awaitingPool) {
+    markers.push({
+      id: 'awaiting-pickup',
+      position: [awaitingPool.pickupArea.latitude, awaitingPool.pickupArea.longitude],
+      title: `[Queued] Pickup: ${awaitingPool.pickupArea.name}`,
+      subtitle: `Advance Trip (${awaitingPool.occupiedSeats} seat${awaitingPool.occupiedSeats > 1 ? 's' : ''})`,
+      type: 'pickup',
+    });
+  }
+
+  if (!activePool && !awaitingPool) {
     pendingRequests.forEach((req) => {
       markers.push({
         id: req.id,
@@ -233,6 +253,9 @@ export default function DriverDashboardPage() {
   const totalSeats = user?.tesla?.totalSeats || 3;
   const occupiedSeats = activePool?.occupiedSeats || 0;
   const seatsAvailable = Math.max(0, totalSeats - occupiedSeats);
+  const isTripStarted = Boolean(
+    activePool?.members.some((m) => m.rideRequest?.status === 'STARTED')
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
@@ -402,31 +425,117 @@ export default function DriverDashboardPage() {
 
                   {activePool.status === 'EN_ROUTE' && (
                     <div className="space-y-2">
-                      <button
-                        onClick={handleStartTrip}
-                        disabled={actionLoading}
-                        className="w-full py-3.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold rounded-2xl shadow-xl shadow-cyan-500/20 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
-                      >
-                        {actionLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <ArrowRight className="w-4 h-4" />
-                        )}
-                        Depart &amp; Start Trip (All Onboard)
-                      </button>
-
-                      <button
-                        onClick={handleCompleteTrip}
-                        disabled={actionLoading}
-                        className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-2xl transition flex items-center justify-center gap-2 text-xs"
-                      >
-                        Complete Trip &amp; Collect Fares
-                      </button>
+                      {!isTripStarted ? (
+                        <button
+                          onClick={handleStartTrip}
+                          disabled={actionLoading}
+                          className="w-full py-3.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold rounded-2xl shadow-xl shadow-cyan-500/20 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                        >
+                          {actionLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ArrowRight className="w-4 h-4" />
+                          )}
+                          Depart &amp; Start Trip (All Onboard)
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleCompleteTrip}
+                          disabled={actionLoading}
+                          className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold rounded-2xl shadow-xl shadow-emerald-500/20 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                        >
+                          {actionLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4" />
+                          )}
+                          Complete Trip &amp; Collect Fares
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             ) : null}
+
+            {/* Awaiting / Advance Trip Card */}
+            {awaitingPool && (
+              <div className="bg-slate-900/90 border border-purple-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-purple-500/20 pb-4">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-300 bg-purple-500/20 px-2.5 py-1 rounded-full border border-purple-500/40 flex items-center gap-1.5 w-fit">
+                      <Clock className="w-3 h-3 text-purple-400 animate-pulse" />
+                      Awaiting Advance Trip (1 Queued)
+                    </span>
+                    <h2 className="text-lg font-bold text-white mt-2 flex items-center gap-2">
+                      <span>Pickup: {awaitingPool.pickupArea.name}</span>
+                    </h2>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-[10px] text-purple-300 font-bold uppercase block">Next in Queue</span>
+                    <span className="font-semibold text-purple-400 text-xs">
+                      Starts after current trip
+                    </span>
+                  </div>
+                </div>
+
+                {/* Capacity Progress Bar for Awaiting Trip */}
+                <div>
+                  <div className="flex justify-between text-xs font-semibold mb-2">
+                    <span className="text-slate-300">
+                      Reserved Advance Seats ({awaitingPool.occupiedSeats} / {totalSeats} seats)
+                    </span>
+                    <span className="text-purple-300 font-semibold">
+                      {totalSeats - awaitingPool.occupiedSeats} seat(s) remaining
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-purple-500/20">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-400 transition-all duration-500"
+                      style={{ width: `${(awaitingPool.occupiedSeats / totalSeats) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Passenger list */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Queued Passenger ({awaitingPool.members.length})
+                  </h3>
+                  {awaitingPool.members.map((member) => (
+                    <div
+                      key={member.id}
+                      className="p-3 bg-slate-800/80 rounded-2xl border border-purple-500/20 flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <span className="font-bold text-white block text-sm">
+                          {member.passenger.name}
+                        </span>
+                        <span className="text-slate-400 text-[11px]">
+                          Destination: {member.rideRequest?.destinationArea?.name || 'Dhaka Hub'}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-emerald-400 block">
+                          ৳{(member.farePaisa / 100).toFixed(0)}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {member.seats} {member.seats === 1 ? 'seat' : 'seats'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-3 bg-purple-950/40 border border-purple-500/30 rounded-2xl text-[11px] text-purple-200 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-purple-400 shrink-0" />
+                  <span>
+                    This trip is locked in advance and will automatically activate once your active trip is completed.
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Pending Ride Requests */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
@@ -488,14 +597,51 @@ export default function DriverDashboardPage() {
                         </p>
                       </div>
 
-                      <button
-                        onClick={() => handleAcceptRide(req.id)}
-                        disabled={Boolean(actionLoading || (activePool && seatsAvailable < req.seatsNeeded))}
-                        className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition shadow-md disabled:opacity-40 flex items-center justify-center gap-1.5 shrink-0"
-                      >
-                        {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 fill-current" />}
-                        Accept Ride
-                      </button>
+                      {(() => {
+                        const canPoolIntoActive = Boolean(
+                          activePool &&
+                            activePool.status === 'ACTIVE' &&
+                            activePool.pickupArea.id === req.pickupArea.id &&
+                            seatsAvailable >= req.seatsNeeded
+                        );
+
+                        const isAdvanceAccept = Boolean(activePool && !canPoolIntoActive);
+                        const isAdvanceLimitReached = Boolean(activePool && awaitingPool && !canPoolIntoActive);
+                        const canAccept =
+                          !isAdvanceLimitReached &&
+                          (!activePool ||
+                            canPoolIntoActive ||
+                            (!awaitingPool && req.seatsNeeded <= totalSeats));
+
+                        return (
+                          <button
+                            onClick={() => handleAcceptRide(req.id)}
+                            disabled={Boolean(actionLoading || !canAccept)}
+                            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-md disabled:opacity-40 flex items-center justify-center gap-1.5 shrink-0 ${
+                              isAdvanceLimitReached
+                                ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                                : isAdvanceAccept
+                                ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/20'
+                                : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
+                            }`}
+                          >
+                            {actionLoading ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : isAdvanceLimitReached ? (
+                              <AlertCircle className="w-3.5 h-3.5" />
+                            ) : isAdvanceAccept ? (
+                              <Clock className="w-3.5 h-3.5" />
+                            ) : (
+                              <Zap className="w-3.5 h-3.5 fill-current" />
+                            )}
+                            {isAdvanceLimitReached
+                              ? 'Queue Full (1 Advance Max)'
+                              : isAdvanceAccept
+                              ? 'Accept Advance Trip'
+                              : 'Accept Ride'}
+                          </button>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
