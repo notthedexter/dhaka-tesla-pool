@@ -2,10 +2,11 @@ const { execSync } = require('child_process');
 
 console.log('🚀 [Dhaka Tesla Pool] Running Vercel Build Pipeline...');
 
-function run(cmd, desc) {
+function run(cmd, desc, extraEnv = {}) {
   console.log(`\n▶ ${desc}`);
   try {
-    execSync(cmd, { stdio: 'inherit', env: process.env });
+    const env = { ...process.env, ...extraEnv };
+    execSync(cmd, { stdio: 'inherit', env });
     return true;
   } catch (err) {
     console.error(`❌ Error during ${desc}:`, err.message);
@@ -40,7 +41,11 @@ if (process.env.DATABASE_URL) {
 }
 
 // 3. Build Next.js Web Application
-const built = run('npm run build:web', 'Building Next.js Web Application');
+// Next.js build strictly requires NODE_ENV='production' for static prerendering
+const built = run('npm run build:web', 'Building Next.js Web Application', {
+  NODE_ENV: 'production',
+});
+
 if (!built) {
   process.exit(1);
 }
