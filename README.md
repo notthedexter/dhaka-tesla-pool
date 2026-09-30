@@ -171,17 +171,22 @@ dhaka-tesla-pool/
 
 ## 🛠️ Setup & Deployment
 
-### Option A: 1-Click Import on Vercel (Zero Config)
+### Option A: 1-Click Import on Vercel + Neon Postgres (Zero Config)
 
-The repository includes a root `vercel.json`, root multi-stage `Dockerfile`, and Next.js standalone dynamic rewrites:
+The repository is pre-configured with root `vercel.json`, automated Prisma client generation, and automatic Neon Postgres migrations + seed:
 
-1. **Import directly in Vercel:**
-   * Go to [vercel.com/new](https://vercel.com/new) and select your GitHub repository.
-   * Vercel will auto-detect `vercel.json` (`framework: nextjs`, `buildCommand: npm run build:web`, `outputDirectory: apps/web/.next`).
-2. **Environment Variables (Optional):**
-   * `NEXT_PUBLIC_API_URL`: Your hosted API URL (e.g., `https://api.yourdomain.com`).
-   * `BACKEND_URL`: Alternatively, provide `BACKEND_URL` for Next.js to proxy `/api/*` endpoints directly without CORS.
-3. **Deploy:** Click **Deploy**. Vercel will build and deploy the Next.js frontend instantly.
+1. **Get your Neon Database URL:**
+   * Create a free database at [neon.tech](https://neon.tech) and copy your connection string:
+     `postgresql://user:password@ep-xyz.us-east-2.aws.neon.tech/neondb?sslmode=require`
+2. **Import directly in Vercel:**
+   * Go to [vercel.com/new](https://vercel.com/new) and select `notthedexter/dhaka-tesla-pool`.
+   * Vercel auto-detects `vercel.json` (`framework: nextjs`, `buildCommand: node scripts/vercel-build.js`).
+3. **Environment Variables:**
+   * Add `DATABASE_URL`: Paste your Neon Postgres connection string.
+   * *(Optional)* `JWT_SECRET`: Any random string for signing JWT tokens.
+4. **Deploy:** Click **Deploy**.
+   * The automated build pipeline detects `DATABASE_URL`, automatically applies Prisma migrations to Neon, and seeds the 12 Dhaka areas and demo accounts (Jashim, Nusrat, Rafiq, Shirin).
+   * Frontend and serverless API run instantly connected to your Neon database!
 
 ---
 

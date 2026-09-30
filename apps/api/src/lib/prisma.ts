@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+// Global PrismaClient singleton for long-running Node processes and serverless warm containers (Vercel / Neon)
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 export const prisma =
   globalForPrisma.prisma ||
@@ -8,4 +9,5 @@ export const prisma =
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+// Always preserve client instance on global in serverless or development to prevent connection leaks
+globalForPrisma.prisma = prisma;

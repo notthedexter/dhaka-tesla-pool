@@ -3,8 +3,9 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log('🌱 Starting database seed for Dhaka Tesla Pool...');
+export async function seedDatabase(dbClient?: PrismaClient) {
+  const db = dbClient || prisma;
+  console.log('🌱 Starting database seed for Dhaka Tesla Pool (Neon Postgres Ready)...');
 
   // 1. Seed Dhaka areas with verified lat/long coordinates
   const areas = [
@@ -23,7 +24,7 @@ async function main() {
   ];
 
   for (const area of areas) {
-    await prisma.area.upsert({
+    await db.area.upsert({
       where: { name: area.name },
       update: { latitude: area.latitude, longitude: area.longitude },
       create: area,
@@ -34,7 +35,7 @@ async function main() {
   const passwordHash = await bcrypt.hash('password123', 10);
 
   // 2. Seed Jashim (Driver) and Bullet (his 3-seat Tesla)
-  const jashim = await prisma.user.upsert({
+  const jashim = await db.user.upsert({
     where: { email: 'jashim@tesla.pool' },
     update: { name: 'Jashim', role: UserRole.DRIVER },
     create: {
@@ -46,7 +47,7 @@ async function main() {
     },
   });
 
-  await prisma.tesla.upsert({
+  await db.tesla.upsert({
     where: { driverId: jashim.id },
     update: { name: 'Bullet', totalSeats: 3 },
     create: {
@@ -66,7 +67,7 @@ async function main() {
   ];
 
   for (const p of passengers) {
-    await prisma.user.upsert({
+    await db.user.upsert({
       where: { email: p.email },
       update: { name: p.name, role: UserRole.PASSENGER },
       create: {
@@ -79,15 +80,17 @@ async function main() {
     });
   }
   console.log(`✅ Seeded ${passengers.length} Passengers: Nusrat, Rafiq, Shirin`);
-
   console.log('🎉 Seed complete! Demo credentials: password123 for all users');
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Seed error:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Auto-run if executed directly as script
+if (require.main === module || (typeof process !== 'undefined' && process.argv[1]?.includes('seed'))) {
+  seedDatabase()
+    .catch((e) => {
+      console.error('❌ Seed error:', e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
