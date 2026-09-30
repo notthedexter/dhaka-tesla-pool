@@ -66,4 +66,35 @@ describe('Dhaka Tesla Pool - Fare Calculation Engine', () => {
     expect(Number.isInteger(result.poolDiscount)).toBe(true);
     expect(Number.isInteger(result.totalFare)).toBe(true);
   });
+
+  test('Person Count Fare: Single seat booking (fare x 1)', () => {
+    const result = calculateFare(2.1, 1, 1);
+    expect(result.seatsCount).toBe(1);
+    expect(result.seatMultiplier).toBe(1.0);
+    expect(result.soloFare).toBe(4600);
+    expect(result.totalFare).toBe(4600);
+  });
+
+  test('Person Count Fare: Double seat booking (fare x 1.75 best practice companion rate)', () => {
+    const result = calculateFare(2.1, 1, 2);
+    expect(result.seatsCount).toBe(2);
+    expect(result.seatMultiplier).toBe(1.75);
+    expect(result.soloFare).toBe(4600); // Solo fare is 46.00 BDT
+    expect(result.totalFare).toBe(8050); // Passenger pays 80.50 BDT (2 persons)
+    // Driver wallet receives ONLY soloFare (4600), NOT totalFare (8050)
+    expect(result.soloFare).toBeLessThan(result.totalFare);
+    expect(result.soloFare).toBe(4600);
+    expect(Number.isInteger(result.totalFare)).toBe(true);
+  });
+
+  test('Person Count Fare: Triple seat booking (fare x 2.40 best practice charter rate)', () => {
+    const result = calculateFare(2.1, 1, 3);
+    expect(result.seatsCount).toBe(3);
+    expect(result.seatMultiplier).toBe(2.40);
+    expect(result.soloFare).toBe(4600);
+    expect(result.totalFare).toBe(11040); // Passenger pays 110.40 BDT (3 persons)
+    // Driver wallet receives ONLY soloFare (4600), NOT totalFare (11040)
+    expect(result.soloFare).toBe(4600);
+    expect(Number.isInteger(result.totalFare)).toBe(true);
+  });
 });

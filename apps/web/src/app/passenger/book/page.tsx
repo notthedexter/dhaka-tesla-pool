@@ -57,13 +57,27 @@ interface RouteCalculation {
   distanceKm: number;
   durationMin: number;
   coordinates: [number, number][];
+  seats: number;
   fare: {
+    totalFare: number;
+    baseFare: number;
+    distanceCharge: number;
+    soloFare: number;
+    seatMultiplier: number;
+    rawFare: number;
+    poolDiscount: number;
+    discountPercentage: number;
+    seatsCount: number;
+  };
+  soloFare: {
     totalFare: number;
     baseFare: number;
     distanceCharge: number;
   };
   fareBreakdown: {
     solo: { totalFare: number };
+    double: { totalFare: number };
+    triple: { totalFare: number };
     pooled2: { totalFare: number };
     pooled3: { totalFare: number };
   };
@@ -165,7 +179,7 @@ function BookRideContent() {
     loadAreas();
   }, [searchParams]);
 
-  // Fetch route and fare estimate
+  // Fetch route and fare estimate accounting for seatsNeeded
   useEffect(() => {
     if (!pickupId || !destinationId || pickupId === destinationId) {
       setRouteData(null);
@@ -177,7 +191,7 @@ function BookRideContent() {
       setError(null);
       try {
         const data = await api.get<RouteCalculation>(
-          `/api/areas/distance?from=${pickupId}&to=${destinationId}`
+          `/api/areas/distance?from=${pickupId}&to=${destinationId}&seats=${seatsNeeded}`
         );
         setRouteData(data);
       } catch (err: any) {
@@ -189,7 +203,7 @@ function BookRideContent() {
     }
 
     fetchRoute();
-  }, [pickupId, destinationId]);
+  }, [pickupId, destinationId, seatsNeeded]);
 
   const handleCancelActiveRide = async () => {
     if (!activeRide) return;
@@ -541,23 +555,31 @@ function BookRideContent() {
 
                 {/* Seats Needed Selector */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-emerald-400" />
-                    Seats Needed (Max 3 in Bullet)
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                      <Users className="w-4 h-4 text-emerald-400" />
+                      Seats Needed (Person Count)
+                    </label>
+                    <span className="text-[11px] text-emerald-400 font-semibold">
+                      {seatsNeeded === 1 ? '1x Solo Rate' : seatsNeeded === 2 ? '1.75x Companion Rate' : '2.40x Charter Rate'}
+                    </span>
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     {[1, 2, 3].map((num) => (
                       <button
                         key={num}
                         type="button"
                         onClick={() => setSeatsNeeded(num)}
-                        className={`py-2.5 rounded-xl border text-sm font-bold transition flex items-center justify-center gap-1.5 ${
+                        className={`py-2.5 rounded-xl border text-sm font-bold transition flex flex-col items-center justify-center ${
                           seatsNeeded === num
                             ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-lg shadow-emerald-500/20'
                             : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
                         }`}
                       >
-                        {num} {num === 1 ? 'Seat' : 'Seats'}
+                        <span>{num} {num === 1 ? 'Seat' : 'Seats'}</span>
+                        <span className={`text-[10px] ${seatsNeeded === num ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
+                          {num === 1 ? '1.0x' : num === 2 ? '1.75x' : '2.40x'}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -613,22 +635,47 @@ function BookRideContent() {
                 {routeData && (
                   <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-700 space-y-2.5 text-xs">
                     <div className="flex justify-between text-slate-400">
-                      <span>Base Fare:</span>
+                      <span>Base Fare (Solo):</span>
                       <span className="font-medium text-white">৳{(routeData.fare.baseFare / 100).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-slate-400">
                       <span>Distance Charge ({routeData.distanceKm} km @ ৳10/km):</span>
                       <span className="font-medium text-white">৳{(routeData.fare.distanceCharge / 100).toFixed(2)}</span>
                     </div>
+
+                    {seatsNeeded > 1 && (
+                      <div className="flex justify-between text-slate-400">
+                        <span>Person Count Multiplier ({seatsNeeded} persons):</span>
+                        <span className="font-medium text-amber-300">
+                          {seatsNeeded === 2 ? '1.75x (Companion Discount)' : '2.40x (Fleet Charter)'}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="pt-2 border-t border-slate-700/80 flex justify-between items-center text-sm font-bold text-white">
-                      <span>Estimated Solo Fare:</span>
-                      <span className="text-emerald-400 text-base">৳{(routeData.fare.totalFare / 100).toFixed(2)}</span>
+                      <span>{seatsNeeded === 1 ? 'Estimated Solo Fare:' : `Total Fare (${seatsNeeded} Persons):`}</span>
+                      <div className="text-right">
+                        <span className="text-emerald-400 text-base">৳{(routeData.fare.totalFare / 100).toFixed(2)}</span>
+                        {seatsNeeded > 1 && (
+                          <span className="block text-[10px] text-slate-400 font-normal">
+                            ~৳{(routeData.fare.totalFare / 100 / seatsNeeded).toFixed(0)} / person
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2 text-[11px] text-emerald-300 mt-2">
                       <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span>
-                        <strong>Pool Savings:</strong> If another passenger joins your route, your fare drops to <strong>৳{(routeData.fareBreakdown.pooled2.totalFare / 100).toFixed(0)}</strong> (2 riders) or <strong>৳{(routeData.fareBreakdown.pooled3.totalFare / 100).toFixed(0)}</strong> (3 riders).
+                        {seatsNeeded === 1 ? (
+                          <>
+                            <strong>Pool Savings:</strong> If another passenger joins your route, your fare drops to <strong>৳{(routeData.fareBreakdown.pooled2.totalFare / 100).toFixed(0)}</strong> (2 riders) or <strong>৳{(routeData.fareBreakdown.pooled3.totalFare / 100).toFixed(0)}</strong> (3 riders).
+                          </>
+                        ) : (
+                          <>
+                            <strong>Driver Earnings Policy:</strong> Driver receives the solo fare (<strong>৳{((routeData.soloFare?.totalFare || routeData.fare.soloFare || routeData.fare.totalFare) / 100).toFixed(0)}</strong>) directly in their cockpit wallet.
+                          </>
+                        )}
                       </span>
                     </div>
                   </div>

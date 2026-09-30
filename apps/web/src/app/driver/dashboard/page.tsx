@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   TrendingUp,
   RefreshCw,
+  Wallet,
 } from 'lucide-react';
 
 interface PendingRequest {
@@ -60,7 +61,7 @@ interface ActivePool {
 
 export default function DriverDashboardPage() {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refreshUser } = useAuth();
 
   const [isOnline, setIsOnline] = useState<boolean>(false);
   const [activePool, setActivePool] = useState<ActivePool | null>(null);
@@ -194,6 +195,7 @@ export default function DriverDashboardPage() {
     try {
       await api.patch(`/api/drivers/pool/${activePool.id}/complete`);
       setActivePool(null);
+      await refreshUser();
       await fetchData();
     } catch (err: any) {
       setError(err.message || 'Failed to complete trip');
@@ -286,6 +288,15 @@ export default function DriverDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Pilot Wallet Balance Badge */}
+            <div className="flex items-center gap-2.5 px-4 py-2 bg-emerald-950/80 border border-emerald-500/30 rounded-2xl text-xs font-bold text-emerald-300">
+              <Wallet className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div>
+                <span className="block text-[10px] text-slate-400 font-normal uppercase tracking-wider">Pilot Wallet</span>
+                <span className="text-white text-sm font-extrabold">৳{((user?.walletBalancePaisa || 0) / 100).toFixed(0)}</span>
+              </div>
+            </div>
+
             <Link
               href="/driver/history"
               className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl text-xs font-semibold text-slate-300 transition"
@@ -398,9 +409,14 @@ export default function DriverDashboardPage() {
                         <span className="font-bold text-emerald-400 block">
                           ৳{(member.farePaisa / 100).toFixed(0)}
                         </span>
-                        <span className="text-[10px] text-slate-400">
-                          {member.seats} seat(s)
+                        <span className="text-[10px] text-slate-400 block">
+                          {member.seats} seat{member.seats > 1 ? 's' : ''} {member.seats > 1 ? `(${member.seats === 2 ? '1.75x' : '2.40x'})` : '(Solo)'}
                         </span>
+                        {member.seats > 1 && (
+                          <span className="text-[9px] text-amber-300/90 block font-semibold">
+                            Solo fare credited to Pilot
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -583,7 +599,9 @@ export default function DriverDashboardPage() {
                         <div className="flex items-center gap-2 text-[11px] text-slate-400 mb-1">
                           <span className="font-bold text-white">{req.passenger.name}</span>
                           <span>•</span>
-                          <span>{req.seatsNeeded} {req.seatsNeeded === 1 ? 'Seat' : 'Seats'}</span>
+                          <span>
+                            {req.seatsNeeded} {req.seatsNeeded === 1 ? 'Seat' : 'Seats'} {req.seatsNeeded > 1 ? `(${req.seatsNeeded === 2 ? '1.75x' : '2.40x'})` : '(Solo)'}
+                          </span>
                           <span>•</span>
                           <span>{req.distanceKm} km</span>
                         </div>
@@ -593,7 +611,12 @@ export default function DriverDashboardPage() {
                           <span className="text-emerald-400">{req.destinationArea.name}</span>
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          Fare: <strong>৳{(req.estimatedFarePaisa / 100).toFixed(0)}</strong> • Method: {req.paymentMethod}
+                          Fare: <strong className="text-emerald-400">৳{(req.estimatedFarePaisa / 100).toFixed(0)}</strong> • Method: {req.paymentMethod}
+                          {req.seatsNeeded > 1 && (
+                            <span className="text-slate-400 ml-1">
+                              (Pilot credit: Solo 1x)
+                            </span>
+                          )}
                         </p>
                       </div>
 

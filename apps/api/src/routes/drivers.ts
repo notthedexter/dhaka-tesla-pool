@@ -14,6 +14,7 @@ import {
   PaymentMethod,
 } from '@prisma/client';
 import { recalculatePoolFares } from '../services/poolMatcher';
+import { calculateFare } from '../services/fare';
 
 const router = Router();
 
@@ -436,6 +437,8 @@ router.patch('/pool/:poolId/complete', requireAuth, requireRole('DRIVER'), async
         data: { status: PoolStatus.COMPLETED },
       });
 
+      let totalDriverSoloEarningsPaisa = 0;
+
       // 2. Process each passenger member
       for (const member of pool.members) {
         // Mark ride completed
@@ -455,7 +458,7 @@ router.patch('/pool/:poolId/complete', requireAuth, requireRole('DRIVER'), async
         const isTeslaPay = member.rideRequest.paymentMethod === PaymentMethod.TESLAPAY;
 
         if (isTeslaPay) {
-          // Deduct from passenger's wallet
+          // Deduct full person-count fare from passenger's wallet
           await tx.user.update({
             where: { id: member.passengerId },
             data: {
@@ -465,6 +468,12 @@ router.patch('/pool/:poolId/complete', requireAuth, requireRole('DRIVER'), async
             },
           });
         }
+
+        // Calculate solo fare (1x single seat) for this trip
+        // Business Rule: ONLY the solo fare is added to the driver's wallet, not the multi-seat total!
+        const soloFareResult = calculateFare(member.rideRequest.distanceKm, 1, 1);
+        const driverSoloFare = soloFareResult.soloFare;
+        totalDriverSoloEarningsPaisa += driverSoloFare;
 
         // Record completed payment
         await tx.payment.upsert({
@@ -479,6 +488,18 @@ router.patch('/pool/:poolId/complete', requireAuth, requireRole('DRIVER'), async
             amountPaisa: fare,
             method: member.rideRequest.paymentMethod,
             status: PaymentStatus.COMPLETED,
+          },
+        });
+      }
+
+      // 3. Credit driver's wallet with ONLY the solo fare(s)
+      if (totalDriverSoloEarningsPaisa > 0) {
+        await tx.user.update({
+          where: { id: pool.driverId },
+          data: {
+            walletBalancePaisa: {
+              increment: totalDriverSoloEarningsPaisa,
+            },
           },
         });
       }
