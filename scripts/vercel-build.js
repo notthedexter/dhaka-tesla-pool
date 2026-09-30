@@ -1,4 +1,6 @@
 const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 console.log('🚀 [Dhaka Tesla Pool] Running Vercel Build Pipeline...');
 
@@ -48,6 +50,20 @@ const built = run('npm run build:web', 'Building Next.js Web Application', {
 
 if (!built) {
   process.exit(1);
+}
+
+// 4. Ensure Vercel build-utils diagnostics artifact exists
+const diagDir = path.join(__dirname, '../apps/web/.next/diagnostics');
+const statsFile = path.join(diagDir, 'route-bundle-stats.json');
+try {
+  if (!fs.existsSync(diagDir)) {
+    fs.mkdirSync(diagDir, { recursive: true });
+  }
+  if (!fs.existsSync(statsFile)) {
+    fs.writeFileSync(statsFile, JSON.stringify({ routes: {} }, null, 2));
+  }
+} catch (e) {
+  // Best-effort diagnostic fallback
 }
 
 console.log('\n✨ [Dhaka Tesla Pool] Build pipeline completed successfully!\n');
