@@ -13,6 +13,7 @@ import {
   PaymentStatus,
   PaymentMethod,
 } from '@prisma/client';
+import { recalculatePoolFares } from '../services/poolMatcher';
 
 const router = Router();
 
@@ -210,7 +211,19 @@ router.post('/accept/:rideId', requireAuth, requireRole('DRIVER'), async (req: R
         },
       });
 
-      return { pool: targetPool, poolMember, ride: updatedRide };
+      // Recalculate discounted fares for all members in this pool
+      await recalculatePoolFares(tx, targetPool.id);
+
+      // Fetch fresh ride with updated fare
+      const finalRide = await tx.rideRequest.findUnique({
+        where: { id: ride.id },
+        include: {
+          pickupArea: true,
+          destinationArea: true,
+        },
+      });
+
+      return { pool: targetPool, poolMember, ride: finalRide || updatedRide };
     });
 
     res.json({

@@ -445,6 +445,17 @@ export default function RideTrackingPage({ params }: { params: Promise<{ id: str
                   <span className="text-slate-400">Seats Reserved:</span>
                   <span className="font-semibold text-white">{ride.seatsNeeded}</span>
                 </div>
+                {ride.pool && ride.pool.occupiedSeats >= 2 && (
+                  <div className="flex justify-between items-center text-[11px] text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1.5 rounded-xl border border-emerald-500/30">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      Pool Discount ({ride.pool.occupiedSeats === 2 ? '20%' : '30%'})
+                    </span>
+                    <span>
+                      {ride.pool.occupiedSeats === 2 ? '2 Passengers' : 'Full Pool (3 Passengers)'}
+                    </span>
+                  </div>
+                )}
                 <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-sm font-bold text-white">
                   <span>Your Individual Fare:</span>
                   <span className="text-emerald-400 text-lg">

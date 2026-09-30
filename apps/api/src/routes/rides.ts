@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { getDrivingRoute, getHaversineDistanceKm } from '../services/osrm';
 import { calculateFare } from '../services/fare';
 import { PaymentMethod, RideStatus, PoolMemberStatus, PoolStatus } from '@prisma/client';
+import { attemptPoolMatching, recalculatePoolFares } from '../services/poolMatcher';
 
 const router = Router();
 
@@ -92,10 +93,37 @@ router.post('/', requireAuth, requireRole('PASSENGER'), async (req: Request, res
       },
     });
 
+    // Attempt automatic pool matching with any active pool at this pickup hub
+    const matchResult = await attemptPoolMatching(ride.id);
+
+    let finalRide: any = ride;
+    let finalFare = fare;
+
+    if (matchResult.matched && matchResult.poolId) {
+      finalRide = await prisma.rideRequest.findUnique({
+        where: { id: ride.id },
+        include: {
+          pickupArea: true,
+          destinationArea: true,
+          pool: {
+            include: {
+              tesla: true,
+              driver: { select: { id: true, name: true } },
+            },
+          },
+        },
+      });
+      finalFare = calculateFare(route.distanceKm, matchResult.totalPoolSize || 2);
+    }
+
     res.status(201).json({
-      message: 'Ride requested successfully',
-      ride,
-      fare,
+      message: matchResult.matched
+        ? 'Ride booked and automatically matched with an active Tesla pool!'
+        : 'Ride requested successfully',
+      ride: finalRide,
+      fare: finalFare,
+      matched: matchResult.matched,
+      poolId: matchResult.poolId,
       route: {
         distanceKm: route.distanceKm,
         durationMin: route.durationMin,
@@ -317,6 +345,9 @@ router.patch('/:id/cancel', requireAuth, async (req: Request, res: Response) => 
             status: PoolMemberStatus.CANCELLED,
           },
         });
+
+        // Recalculate fares for remaining members in pool
+        await recalculatePoolFares(tx, ride.poolId!);
 
         // Mark ride as cancelled
         return tx.rideRequest.update({
