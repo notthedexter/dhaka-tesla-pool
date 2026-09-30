@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRouter from './routes/auth';
 import areasRouter from './routes/areas';
 import ridesRouter from './routes/rides';
+import driversRouter from './routes/drivers';
 
 dotenv.config();
 
@@ -34,6 +35,9 @@ app.use('/api/areas', areasRouter);
 
 // Ride requests and booking routes
 app.use('/api/rides', ridesRouter);
+
+// Driver operations and pool lifecycle routes
+app.use('/api/drivers', driversRouter);
 
 // Centralized error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
