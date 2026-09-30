@@ -48,11 +48,15 @@ export default function Navbar() {
             <div className="flex items-center gap-3">
               {/* Passenger wallet balance */}
               {user.role === 'PASSENGER' && (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-emerald-950/80 border border-emerald-500/30 rounded-full text-xs font-bold text-emerald-300">
+                <Link
+                  href="/passenger/wallet"
+                  title="View TeslaPay Wallet & Top-up"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-emerald-950/80 hover:bg-emerald-900/80 border border-emerald-500/30 rounded-full text-xs font-bold text-emerald-300 transition"
+                >
                   <Wallet className="w-3.5 h-3.5 text-emerald-400" />
                   <span>৳{(user.walletBalancePaisa / 100).toFixed(0)}</span>
-                  <span className="text-[10px] text-emerald-400 font-normal">TeslaPay</span>
-                </div>
+                  <span className="text-[10px] text-emerald-400 font-normal">TeslaPay +</span>
+                </Link>
               )}
 
               {/* Driver vehicle badge */}

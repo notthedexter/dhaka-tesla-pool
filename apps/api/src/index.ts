@@ -5,6 +5,7 @@ import authRouter from './routes/auth';
 import areasRouter from './routes/areas';
 import ridesRouter from './routes/rides';
 import driversRouter from './routes/drivers';
+import walletRouter from './routes/wallet';
 
 dotenv.config();
 
@@ -38,6 +39,9 @@ app.use('/api/rides', ridesRouter);
 
 // Driver operations and pool lifecycle routes
 app.use('/api/drivers', driversRouter);
+
+// TeslaPay wallet balance, topup, and transactions
+app.use('/api/wallet', walletRouter);
 
 // Centralized error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
