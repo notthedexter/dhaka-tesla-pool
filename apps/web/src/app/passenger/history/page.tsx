@@ -32,7 +32,7 @@ interface RideItem {
 const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
   COMPLETED: {
     label: 'Completed',
-    cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     icon: <CheckCircle className="w-3 h-3" />,
   },
   CANCELLED: {
@@ -42,7 +42,7 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.Re
   },
   STARTED: {
     label: 'In Progress',
-    cls: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    cls: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
     icon: <Loader2 className="w-3 h-3 animate-spin" />,
   },
 };
@@ -69,27 +69,27 @@ export default function RideHistoryPage() {
     STATUS_CONFIG[status] || { label: status.replace('_', ' '), cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: null };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col">
       <Navbar />
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-emerald-400" /> Ride History
+            <h1 className="font-display text-xl font-bold text-white flex items-center gap-2">
+              <Clock className="w-5 h-5 text-blue-400" /> Ride History
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">All your Dhaka Tesla journeys</p>
+            <p className="text-xs text-slate-400 mt-0.5">All your pooled Tesla trips across Dhaka</p>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href="/passenger/wallet"
-              className="px-3 py-1.5 text-xs font-medium text-slate-400 glass border border-white/[0.06] rounded-lg hover:text-white transition flex items-center gap-1.5"
+              className="px-3 py-1.5 text-xs font-medium text-slate-300 bg-slate-900/80 border border-slate-700/80 rounded-lg hover:text-white transition flex items-center gap-1.5"
             >
-              <Zap className="w-3 h-3 text-emerald-400" /> Wallet
+              <Zap className="w-3 h-3 text-blue-400" /> Wallet
             </Link>
             <Link
               href="/passenger/book"
-              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs transition"
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg text-xs transition"
             >
               Book
             </Link>
@@ -97,61 +97,61 @@ export default function RideHistoryPage() {
         </div>
 
         {error && (
-          <div className="mb-5 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-300 text-sm flex items-center gap-2">
+          <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" /> {error}
           </div>
         )}
 
         {loading ? (
           <div className="py-20 flex justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
         ) : rides.length === 0 ? (
-          <div className="glass-card rounded-3xl p-12 text-center">
-            <div className="text-4xl mb-4">🚗</div>
-            <h3 className="font-bold text-white mb-2">No rides yet</h3>
-            <p className="text-xs text-slate-500 mb-5">Book your first Tesla pool ride across Dhaka.</p>
-            <Link href="/passenger/book" className="px-5 py-2.5 bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs inline-block">
-              Book a Ride
+          <div className="glass-card rounded-2xl p-10 text-center">
+            <div className="text-3xl mb-3">⚡</div>
+            <h3 className="font-display font-bold text-white mb-1 text-sm">No Rides Found</h3>
+            <p className="text-xs text-slate-400 mb-4">Book your first shared seat in an electric Tesla.</p>
+            <Link href="/passenger/book" className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg text-xs inline-block">
+              Book a Seat
             </Link>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {rides.map((ride) => {
               const s = statusConfig(ride.status);
               return (
                 <Link
                   key={ride.id}
                   href={`/passenger/ride/${ride.id}`}
-                  className="block glass-card rounded-2xl p-5 hover:border-emerald-500/20 transition group"
+                  className="block glass-card rounded-xl p-4 hover:border-blue-500/25 transition group"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 text-xs text-slate-500 mb-1.5">
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400 mb-1">
                         <Calendar className="w-3 h-3" />
                         <span>{new Date(ride.createdAt).toLocaleString()}</span>
                         <span>·</span>
                         <span>{ride.seatsNeeded} {ride.seatsNeeded === 1 ? 'seat' : 'seats'}</span>
                         <span>·</span>
-                        <span>{ride.distanceKm} km</span>
+                        <span className="font-mono">{ride.distanceKm} km</span>
                       </div>
-                      <div className="text-sm font-bold text-white flex items-center gap-2">
+                      <div className="text-sm font-semibold text-white flex items-center gap-1.5">
                         <span>{ride.pickupArea.name}</span>
-                        <span className="text-slate-600">→</span>
-                        <span className="text-emerald-400">{ride.destinationArea.name}</span>
+                        <span className="text-slate-500">→</span>
+                        <span className="text-blue-400">{ride.destinationArea.name}</span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-4 shrink-0">
                       <div className="text-right">
-                        <span className="text-xs text-slate-500 block">Fare</span>
-                        <span className="font-bold text-white">৳{(ride.estimatedFarePaisa / 100).toFixed(0)}</span>
+                        <span className="text-[10px] text-slate-400 block uppercase">Fare</span>
+                        <span className="font-mono font-bold text-white text-sm">৳{(ride.estimatedFarePaisa / 100).toFixed(0)}</span>
                       </div>
-                      <span className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${s.cls}`}>
+                      <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold ${s.cls}`}>
                         {s.icon} {s.label}
                       </span>
-                      <div className="w-7 h-7 rounded-lg bg-white/[0.05] group-hover:bg-emerald-500/10 flex items-center justify-center transition">
-                        <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400" />
+                      <div className="w-6 h-6 rounded-lg bg-slate-900 group-hover:bg-blue-600/20 flex items-center justify-center transition">
+                        <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-blue-400" />
                       </div>
                     </div>
                   </div>

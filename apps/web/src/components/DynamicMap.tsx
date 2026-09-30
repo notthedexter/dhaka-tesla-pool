@@ -20,7 +20,7 @@ const DynamicLeafletMap = dynamic(() => import('./Map'), {
   ssr: false,
   loading: () => (
     <div className="h-[450px] w-full bg-slate-800/80 rounded-2xl flex flex-col items-center justify-center border border-slate-700/60 p-6 text-slate-400 animate-pulse">
-      <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mb-3">
+      <div className="w-12 h-12 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center mb-3">
         <span className="text-xl">🗺️</span>
       </div>
       <p className="font-semibold text-sm text-slate-300">Loading OpenStreetMap of Dhaka...</p>

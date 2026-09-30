@@ -145,9 +145,9 @@ const STATUS_CONFIG: Record<
   { bg: string; border: string; pulseBg: string }
 > = {
   online: {
-    bg: "bg-emerald-500",
-    border: "border-emerald-300 dark:border-emerald-400",
-    pulseBg: "bg-emerald-400",
+    bg: "bg-sky-500",
+    border: "border-sky-300 dark:border-sky-400",
+    pulseBg: "bg-sky-400",
   },
   away: {
     bg: "bg-amber-500",
