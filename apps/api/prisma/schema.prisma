@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PASSENGER
+  DRIVER
+}
+
+enum RideStatus {
+  REQUESTED
+  MATCHED
+  DRIVER_ARRIVED
+  STARTED
+  COMPLETED
+  CANCELLED
+}
+
+enum PoolStatus {
+  ACTIVE
+  EN_ROUTE
+  COMPLETED
+  CANCELLED
+}
+
+enum PoolMemberStatus {
+  JOINED
+  PICKED_UP
+  DROPPED_OFF
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  TESLAPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+}
+
+model User {
+  id                 String       @id @default(uuid())
+  name               String
+  email              String       @unique
+  passwordHash       String       @map("password_hash")
+  role               UserRole
+  walletBalancePaisa Int          @default(0) @map("wallet_balance_paisa")
+  createdAt          DateTime     @default(now()) @map("created_at")
+
+  tesla              Tesla?
+  rideRequests       RideRequest[]
+  poolsDriven        Pool[]       @relation("DriverPools")
+  poolMemberships    PoolMember[]
+  payments           Payment[]
+
+  @@map("users")
+}
+
+model Tesla {
+  id         String   @id @default(uuid())
+  driverId   String   @unique @map("driver_id")
+  name       String
+  totalSeats Int      @default(3) @map("total_seats")
+  isOnline   Boolean  @default(false) @map("is_online")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  driver     User     @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  pools      Pool[]
+
+  @@map("teslas")
+}
+
+model Area {
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  latitude  Float
+  longitude Float
+
+  pickupRides      RideRequest[] @relation("PickupArea")
+  destinationRides RideRequest[] @relation("DestinationArea")
+  poolPickups      Pool[]        @relation("PoolPickupArea")
+
+  @@map("areas")
+}
+
+model RideRequest {
+  id                 String        @id @default(uuid())
+  passengerId        String        @map("passenger_id")
+  pickupAreaId       Int           @map("pickup_area_id")
+  destinationAreaId  Int           @map("destination_area_id")
+  seatsNeeded        Int           @default(1) @map("seats_needed")
+  estimatedFarePaisa Int           @default(0) @map("estimated_fare_paisa")
+  distanceKm         Float         @default(0) @map("distance_km")
+  status             RideStatus    @default(REQUESTED)
+  poolId             String?       @map("pool_id")
+  paymentMethod      PaymentMethod @default(CASH) @map("payment_method")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  passenger          User          @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+  pickupArea         Area          @relation("PickupArea", fields: [pickupAreaId], references: [id])
+  destinationArea    Area          @relation("DestinationArea", fields: [destinationAreaId], references: [id])
+  pool               Pool?         @relation(fields: [poolId], references: [id], onDelete: SetNull)
+  poolMember         PoolMember?
+  payment            Payment?
+
+  @@map("ride_requests")
+}
+
+model Pool {
+  id            String     @id @default(uuid())
+  teslaId       String     @map("tesla_id")
+  driverId      String     @map("driver_id")
+  pickupAreaId  Int        @map("pickup_area_id")
+  status        PoolStatus @default(ACTIVE)
+  occupiedSeats Int        @default(0) @map("occupied_seats")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  tesla         Tesla      @relation(fields: [teslaId], references: [id], onDelete: Cascade)
+  driver        User       @relation("DriverPools", fields: [driverId], references: [id], onDelete: Cascade)
+  pickupArea    Area       @relation("PoolPickupArea", fields: [pickupAreaId], references: [id])
+  rideRequests  RideRequest[]
+  members       PoolMember[]
+
+  @@map("pools")
+}
+
+model PoolMember {
+  id            String           @id @default(uuid())
+  poolId        String           @map("pool_id")
+  rideRequestId String           @unique @map("ride_request_id")
+  passengerId   String           @map("passenger_id")
+  seats         Int              @default(1)
+  farePaisa     Int              @default(0) @map("fare_paisa")
+  status        PoolMemberStatus @default(JOINED)
+  joinedAt      DateTime         @default(now()) @map("joined_at")
+
+  pool          Pool             @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  rideRequest   RideRequest      @relation(fields: [rideRequestId], references: [id], onDelete: Cascade)
+  passenger     User             @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+
+  @@map("pool_members")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  rideRequestId String        @unique @map("ride_request_id")
+  passengerId   String        @map("passenger_id")
+  amountPaisa   Int           @map("amount_paisa")
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  rideRequest   RideRequest   @relation(fields: [rideRequestId], references: [id], onDelete: Cascade)
+  passenger     User          @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
