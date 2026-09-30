@@ -5,8 +5,8 @@ import { PaymentStatus } from '@prisma/client';
 
 const router = Router();
 
-// GET /api/wallet/balance - Fetch passenger's TeslaPay wallet balance
-router.get('/balance', requireAuth, requireRole('PASSENGER'), async (req: Request, res: Response) => {
+// GET /api/wallet/balance - Fetch user's (passenger or driver) wallet balance
+router.get('/balance', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.userId },

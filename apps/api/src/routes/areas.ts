@@ -62,10 +62,15 @@ router.get('/distance', async (req: Request, res: Response) => {
       { lat: destination.latitude, lng: destination.longitude },
     ]);
 
-    // Calculate fares: solo vs pooled
-    const soloFare = calculateFare(route.distanceKm, 1);
-    const pool2Fare = calculateFare(route.distanceKm, 2);
-    const pool3Fare = calculateFare(route.distanceKm, 3);
+    const seats = Math.max(1, Math.min(3, Number(req.query.seats) || 1));
+
+    // Calculate fares: person count fare for requested seats and solo/pooled alternatives
+    const fare = calculateFare(route.distanceKm, 1, seats);
+    const soloFare = calculateFare(route.distanceKm, 1, 1);
+    const doubleFare = calculateFare(route.distanceKm, 1, 2);
+    const tripleFare = calculateFare(route.distanceKm, 1, 3);
+    const pool2Fare = calculateFare(route.distanceKm, 2, seats);
+    const pool3Fare = calculateFare(route.distanceKm, 3, seats);
 
     res.json({
       pickup,
@@ -73,9 +78,13 @@ router.get('/distance', async (req: Request, res: Response) => {
       distanceKm: route.distanceKm,
       durationMin: route.durationMin,
       coordinates: route.coordinates,
-      fare: soloFare,
+      seats,
+      fare,
+      soloFare,
       fareBreakdown: {
         solo: soloFare,
+        double: doubleFare,
+        triple: tripleFare,
         pooled2: pool2Fare,
         pooled3: pool3Fare,
       },

@@ -34,7 +34,8 @@ export async function recalculatePoolFares(
   for (const member of pool.members) {
     if (!member.rideRequest) continue;
 
-    const newFareResult = calculateFare(member.rideRequest.distanceKm, poolSize);
+    const seats = member.seats || member.rideRequest.seatsNeeded || 1;
+    const newFareResult = calculateFare(member.rideRequest.distanceKm, poolSize, seats);
 
     // Update pool member fare
     await tx.poolMember.update({

@@ -85,8 +85,8 @@ router.post('/', requireAuth, requireRole('PASSENGER'), async (req: Request, res
       { lat: destinationArea.latitude, lng: destinationArea.longitude },
     ]);
 
-    // Initial estimated fare for solo rider (adjusted dynamically if pooled)
-    const fare = calculateFare(route.distanceKm, 1);
+    // Initial estimated fare accounting for requested seats (adjusted dynamically if pooled)
+    const fare = calculateFare(route.distanceKm, 1, seatsNeeded);
 
     // If payment method is TeslaPay, check if wallet has enough balance
     if (paymentMethod === PaymentMethod.TESLAPAY) {
@@ -141,7 +141,7 @@ router.post('/', requireAuth, requireRole('PASSENGER'), async (req: Request, res
           },
         },
       });
-      finalFare = calculateFare(route.distanceKm, matchResult.totalPoolSize || 2);
+      finalFare = calculateFare(route.distanceKm, matchResult.totalPoolSize || 2, seatsNeeded);
     }
 
     res.status(201).json({

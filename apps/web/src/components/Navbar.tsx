@@ -59,11 +59,18 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {/* Driver vehicle badge */}
+              {/* Driver wallet & vehicle badges */}
               {user.role === 'DRIVER' && (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-amber-950/80 border border-amber-500/30 rounded-full text-xs font-bold text-amber-300">
-                  <Car className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{user.tesla?.name || 'Tesla'} ({user.tesla?.totalSeats || 3} seats)</span>
+                <div className="hidden sm:flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-950/80 border border-emerald-500/30 rounded-full text-xs font-bold text-emerald-300">
+                    <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>৳{((user.walletBalancePaisa || 0) / 100).toFixed(0)}</span>
+                    <span className="text-[10px] text-emerald-400 font-normal">Pilot Wallet</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-950/80 border border-amber-500/30 rounded-full text-xs font-bold text-amber-300">
+                    <Car className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{user.tesla?.name || 'Tesla'} ({user.tesla?.totalSeats || 3} seats)</span>
+                  </div>
                 </div>
               )}
 
