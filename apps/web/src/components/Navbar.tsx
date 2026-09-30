@@ -26,12 +26,29 @@ export default function Navbar() {
 
         {/* Center nav */}
         <nav className="hidden md:flex items-center gap-1">
-          <Link href="/passenger/book" className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
-            Book
-          </Link>
-          <Link href="/driver/dashboard" className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
-            Driver Hub
-          </Link>
+          {user?.role === 'PASSENGER' && (
+            <Link href="/passenger/book" className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
+              Book Now
+            </Link>
+          )}
+
+          {user?.role === 'DRIVER' && (
+            <Link href="/driver/dashboard" className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
+              Driver Hub
+            </Link>
+          )}
+
+          {!user && (
+            <>
+              <Link href="/passenger/book" className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
+                Book Now
+              </Link>
+              <Link href="/register?role=DRIVER" className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
+                Join as Driver
+              </Link>
+            </>
+          )}
+
           <Link href="/#how-it-works" className="px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
             How It Works
           </Link>
@@ -86,6 +103,24 @@ export default function Navbar() {
                       <p className="text-xs font-semibold text-white">{user.name}</p>
                       <p className="text-[11px] text-slate-400 uppercase tracking-wider">{user.role}</p>
                     </div>
+                    {user.role === 'PASSENGER' && (
+                      <Link
+                        href="/passenger/book"
+                        onClick={() => setMenuOpen(false)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all"
+                      >
+                        Book Now
+                      </Link>
+                    )}
+                    {user.role === 'DRIVER' && (
+                      <Link
+                        href="/driver/dashboard"
+                        onClick={() => setMenuOpen(false)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/[0.05] rounded-lg transition-all"
+                      >
+                        Driver Hub
+                      </Link>
+                    )}
                     <button
                       onClick={() => { logout(); setMenuOpen(false); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
@@ -106,10 +141,10 @@ export default function Navbar() {
                 Sign in
               </Link>
               <Link
-                href="/register"
+                href="/passenger/book"
                 className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-lg shadow-md shadow-emerald-500/20 transition"
               >
-                Join Pool
+                Book Now
               </Link>
             </div>
           )}

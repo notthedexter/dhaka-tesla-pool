@@ -25,12 +25,12 @@ interface MapProps {
 
 // Custom modern SVG pin icons
 function createPinIcon(type: 'pickup' | 'dropoff' | 'area' | 'tesla' = 'area', label?: string) {
-  let bgColor = '#475569'; // slate-600 default area
+  let bgColor = '#10b981'; // emerald-500
   let iconEmoji = '📍';
 
   if (type === 'pickup') {
-    bgColor = '#2563eb'; // blue-600
-    iconEmoji = '🔵';
+    bgColor = '#16a34a'; // green-600
+    iconEmoji = '🟢';
   } else if (type === 'dropoff') {
     bgColor = '#ef4444'; // red-500
     iconEmoji = '🏁';
@@ -136,8 +136,8 @@ export default function Map({
             <Polyline
               positions={routePath}
               pathOptions={{
-                color: '#1e3a8a',
-                weight: 7,
+                color: '#065f46',
+                weight: 8,
                 opacity: 0.6,
               }}
             />
@@ -145,8 +145,8 @@ export default function Map({
             <Polyline
               positions={routePath}
               pathOptions={{
-                color: '#3b82f6',
-                weight: 4,
+                color: '#10b981',
+                weight: 5,
                 opacity: 0.9,
               }}
             />
@@ -172,7 +172,7 @@ export default function Map({
                 {onMarkerClick && (
                   <button
                     onClick={() => onMarkerClick(marker)}
-                    className="mt-2 text-xs bg-blue-600 text-white font-semibold py-1 px-2.5 rounded-md hover:bg-blue-700 transition block w-full text-center"
+                    className="mt-2 text-xs bg-emerald-600 text-white font-semibold py-1 px-2.5 rounded-md hover:bg-emerald-700 transition block w-full text-center"
                   >
                     Select Location
                   </button>
