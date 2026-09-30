@@ -30,6 +30,34 @@ router.post('/', requireAuth, requireRole('PASSENGER'), async (req: Request, res
 
     const { pickupAreaId, destinationAreaId, seatsNeeded, paymentMethod } = parseResult.data;
 
+    // Constraint: Passenger can only have 1 active ride request at a time
+    const existingActiveRide = await prisma.rideRequest.findFirst({
+      where: {
+        passengerId: req.user!.userId,
+        status: {
+          in: [
+            RideStatus.REQUESTED,
+            RideStatus.MATCHED,
+            RideStatus.DRIVER_ARRIVED,
+            RideStatus.STARTED,
+          ],
+        },
+      },
+      include: {
+        pickupArea: true,
+        destinationArea: true,
+      },
+    });
+
+    if (existingActiveRide) {
+      res.status(400).json({
+        error: 'ActiveRideExists',
+        message: `You already have an active ride request in progress (${existingActiveRide.pickupArea.name} → ${existingActiveRide.destinationArea.name}, status: ${existingActiveRide.status}). You can only request one ride at a time.`,
+        activeRide: existingActiveRide,
+      });
+      return;
+    }
+
     if (pickupAreaId === destinationAreaId) {
       res.status(400).json({
         error: 'ValidationError',
@@ -164,6 +192,50 @@ router.get('/my', requireAuth, requireRole('PASSENGER'), async (req: Request, re
     res.status(500).json({
       error: 'InternalServerError',
       message: 'Failed to fetch ride requests',
+    });
+  }
+});
+
+// GET /api/rides/active - Get passenger's currently active ride request (if any)
+router.get('/active', requireAuth, requireRole('PASSENGER'), async (req: Request, res: Response) => {
+  try {
+    const activeRide = await prisma.rideRequest.findFirst({
+      where: {
+        passengerId: req.user!.userId,
+        status: {
+          in: [
+            RideStatus.REQUESTED,
+            RideStatus.MATCHED,
+            RideStatus.DRIVER_ARRIVED,
+            RideStatus.STARTED,
+          ],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        pickupArea: true,
+        destinationArea: true,
+        pool: {
+          include: {
+            tesla: true,
+            driver: { select: { id: true, name: true } },
+            members: {
+              include: {
+                passenger: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+        payment: true,
+      },
+    });
+
+    res.json(activeRide || null);
+  } catch (err: any) {
+    console.error('Fetch active ride error:', err);
+    res.status(500).json({
+      error: 'InternalServerError',
+      message: 'Failed to fetch active ride',
     });
   }
 });
