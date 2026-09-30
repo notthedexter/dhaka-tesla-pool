@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRouter from './routes/auth';
 import areasRouter from './routes/areas';
+import ridesRouter from './routes/rides';
 
 dotenv.config();
 
@@ -30,6 +31,9 @@ app.use('/api/auth', authRouter);
 
 // Areas and distance routing routes
 app.use('/api/areas', areasRouter);
+
+// Ride requests and booking routes
+app.use('/api/rides', ridesRouter);
 
 // Centralized error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
